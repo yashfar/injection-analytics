@@ -32,8 +32,13 @@ export const trMessages = {
     title: "Çevrim Süresi Dağılımı",
     description:
       "Seçilen makinenin çevrimlerinin hangi süre aralıklarında yoğunlaştığını inceleyin.",
-    selectMachine:
-      "Çevrim süresi dağılımını görmek için bir makine seçin.",
+    noMachineTitle: "Önce bir makine seçin",
+    noMachineDescription:
+      "Çevrim süresi dağılımını görüntülemek için yukarıdaki filtrelerden bir makine seçmeniz gerekir.",
+    selectMachineAction: "Makine Seç",
+    noDataTitle: "Dağılım verisi bulunamadı",
+    noData:
+      "Seçilen ürün, kalıp, makine ve tarih aralığı için çevrim süresi verisi bulunamadı.",
     interval: "Çevrim Süresi Aralığı",
     cycleCount: "Çevrim Sayısı",
     shareOfTotal: "Toplam İçindeki Payı",
@@ -53,8 +58,6 @@ export const trMessages = {
     showingPreviousMachineData: (machine: string) =>
       `Yeni veriler yüklenirken ${machine} verileri gösteriliyor.`,
     loadError: "Çevrim süresi dağılımı yüklenemedi.",
-    noData:
-      "Seçilen filtreler için çevrim süresi dağılımı bulunamadı.",
     unavailable: "Mevcut değil",
     accessibilityDescription:
       "Yatay eksende saniye cinsinden çevrim süresi aralıklarını, dikey eksende her aralıktaki çevrim sayısını gösteren sütun grafik.",

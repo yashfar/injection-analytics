@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import type { FormEvent, Ref } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,8 @@ import {
   isDateOnlyWithinBounds,
   isValidDateOnly,
 } from "@/lib/analytics-filters";
+import { MACHINE_FILTER_TRIGGER_ID } from "@/lib/dashboard-element-ids";
+import { cn } from "@/lib/utils";
 import type {
   AnalyticsComparablePair,
   AnalyticsFilters,
@@ -41,6 +43,8 @@ type DashboardFiltersProps = {
   dateMax: string;
   onDraftFiltersChange: (filters: AnalyticsFilters) => void;
   onApply: () => void;
+  machineFilterRef?: Ref<HTMLButtonElement>;
+  isMachineFilterAttentionActive?: boolean;
   disabled?: boolean;
 };
 
@@ -51,6 +55,8 @@ export function DashboardFilters({
   dateMax,
   onDraftFiltersChange,
   onApply,
+  machineFilterRef,
+  isMachineFilterAttentionActive = false,
   disabled = false,
 }: DashboardFiltersProps) {
   const productCodes = getUniqueProductCodes(comparablePairs);
@@ -231,7 +237,7 @@ export function DashboardFilters({
           </div>
 
           <div className="space-y-2 lg:col-span-1">
-            <Label htmlFor="machine-filter">Makine</Label>
+            <Label htmlFor={MACHINE_FILTER_TRIGGER_ID}>Makine</Label>
             <Select
               value={
                 draftFilters
@@ -241,7 +247,16 @@ export function DashboardFilters({
               onValueChange={handleMachineChange}
               disabled={disabled || machines.length === 0}
             >
-              <SelectTrigger id="machine-filter" className="w-full">
+              <SelectTrigger
+                ref={machineFilterRef}
+                id={MACHINE_FILTER_TRIGGER_ID}
+                data-attention={isMachineFilterAttentionActive}
+                className={cn(
+                  "w-full scroll-m-6",
+                  "data-[attention=true]:border-primary data-[attention=true]:ring-3 data-[attention=true]:ring-primary/40",
+                  "motion-safe:data-[attention=true]:animate-pulse",
+                )}
+              >
                 <SelectValue placeholder="Makine seçin" />
               </SelectTrigger>
               <SelectContent>

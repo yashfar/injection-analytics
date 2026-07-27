@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CycleTimeHistogramChart } from "@/components/dashboard/charts/cycle-time-histogram-chart";
 import { CycleTimeTrendChart } from "@/components/dashboard/charts/cycle-time-trend-chart";
@@ -113,6 +113,12 @@ function DashboardSuccess({
       ...DEFAULT_HISTOGRAM_CONFIGURATION,
     }));
   const firstChartRef = useRef<HTMLElement | null>(null);
+  const machineFilterRef = useRef<HTMLButtonElement | null>(null);
+  const machineAttentionTimeoutRef = useRef<number | null>(null);
+  const [
+    isMachineFilterAttentionActive,
+    setIsMachineFilterAttentionActive,
+  ] = useState(false);
   const machineComparisonFilters =
     toMachineComparisonFilters(appliedFilters);
   const machineComparisonQuery = useMachineComparisonQuery(
@@ -147,6 +153,15 @@ function DashboardSuccess({
   );
   const dateMin = isoUtcToDateInputValue(overview.startDate);
   const dateMax = isoUtcToDateInputValue(overview.endDate);
+
+  useEffect(
+    () => () => {
+      if (machineAttentionTimeoutRef.current !== null) {
+        window.clearTimeout(machineAttentionTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   function applyFilters(): boolean {
     if (
@@ -194,6 +209,35 @@ function DashboardSuccess({
     scrollToFirstChart();
   }
 
+  function focusMachineFilter() {
+    const target = machineFilterRef.current;
+
+    if (!target) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (machineAttentionTimeoutRef.current !== null) {
+      window.clearTimeout(machineAttentionTimeoutRef.current);
+    }
+
+    setIsMachineFilterAttentionActive(true);
+    machineAttentionTimeoutRef.current = window.setTimeout(() => {
+      setIsMachineFilterAttentionActive(false);
+      machineAttentionTimeoutRef.current = null;
+    }, 1800);
+
+    target.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+    target.focus({ preventScroll: true });
+  }
+
   return (
     <>
       <DashboardHeader
@@ -210,6 +254,10 @@ function DashboardSuccess({
         dateMax={dateMax}
         onDraftFiltersChange={setDraftFilters}
         onApply={applyFiltersAndShowResults}
+        machineFilterRef={machineFilterRef}
+        isMachineFilterAttentionActive={
+          isMachineFilterAttentionActive
+        }
       />
 
       <ActiveFilterSummary filters={appliedFilters} />
@@ -255,6 +303,7 @@ function DashboardSuccess({
           isFetching={histogramQuery.isFetching}
           isPlaceholderData={histogramQuery.isPlaceholderData}
           onConfigurationChange={setHistogramConfiguration}
+          onSelectMachine={focusMachineFilter}
           onRetry={() => void histogramQuery.refetch()}
         />
       </section>

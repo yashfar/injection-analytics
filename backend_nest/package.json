@@ -21,7 +21,8 @@
     "inspect:excel": "ts-node scripts/inspect-excel.ts",
     "validate:excel": "ts-node scripts/validate-excel.ts",
     "normalize:excel": "ts-node scripts/normalize-excel.ts",
-    "import:cycles": "ts-node scripts/import-cycles.ts"
+    "import:cycles": "ts-node scripts/import-cycles.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

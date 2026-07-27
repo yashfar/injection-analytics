@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  ChartNoAxesColumnIncreasing,
+  MousePointerClick,
+  SearchX,
+} from "lucide-react";
+import {
   Bar,
   BarChart,
   CartesianGrid,
@@ -84,6 +89,7 @@ type CycleTimeHistogramChartProps = {
   isFetching: boolean;
   isPlaceholderData: boolean;
   onConfigurationChange: (configuration: HistogramConfiguration) => void;
+  onSelectMachine: () => void;
   onRetry: () => void;
 };
 
@@ -205,7 +211,7 @@ function HistogramHeading({
         <span>
           {headingMachine
             ? `${messages.description} Makine: ${headingMachine}.`
-            : messages.selectMachine}
+            : messages.description}
         </span>
         {isMachineChange && displayedMachine ? (
           <span className="mt-1 block">
@@ -309,6 +315,7 @@ function HistogramControls({
 function HistogramSkeleton() {
   return (
     <div
+      data-slot="histogram-skeleton"
       className="flex h-72 items-end gap-2 border-b border-l border-border px-4 pt-8"
       aria-hidden="true"
     >
@@ -318,6 +325,60 @@ function HistogramSkeleton() {
           className={`min-w-0 flex-1 rounded-t-md rounded-b-none ${height}`}
         />
       ))}
+    </div>
+  );
+}
+
+type HistogramEmptyStateProps = {
+  icon: typeof ChartNoAxesColumnIncreasing;
+  title: string;
+  description: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  showHistogramVisual?: boolean;
+};
+
+function HistogramEmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+  showHistogramVisual = false,
+}: HistogramEmptyStateProps) {
+  return (
+    <div className="my-auto flex flex-col items-center gap-5 py-8 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
+        <Icon className="size-6" aria-hidden="true" />
+      </div>
+      {showHistogramVisual ? (
+        <div
+          className="flex h-16 w-full max-w-56 items-end gap-2 border-b border-l border-border px-3 pt-3"
+          aria-hidden="true"
+        >
+          {skeletonBarHeights.slice(0, 6).map((height, index) => (
+            <span
+              key={`${height}-${index}`}
+              className={`min-w-0 flex-1 rounded-t-sm bg-primary/20 ${height}`}
+            />
+          ))}
+        </div>
+      ) : null}
+      <div className="max-w-xl space-y-2">
+        <h3 className="text-base font-semibold text-card-foreground">
+          {title}
+        </h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      {action ? (
+        <Button type="button" onClick={action.onClick}>
+          <MousePointerClick aria-hidden="true" />
+          {action.label}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -370,6 +431,7 @@ export function CycleTimeHistogramChart({
   isFetching,
   isPlaceholderData,
   onConfigurationChange,
+  onSelectMachine,
   onRetry,
 }: CycleTimeHistogramChartProps) {
   const displayedMachine = data?.machine;
@@ -388,9 +450,16 @@ export function CycleTimeHistogramChart({
             disabled
             onConfigurationChange={onConfigurationChange}
           />
-          <p className="my-auto text-sm text-muted-foreground">
-            {messages.selectMachine}
-          </p>
+          <HistogramEmptyState
+            icon={ChartNoAxesColumnIncreasing}
+            title={messages.noMachineTitle}
+            description={messages.noMachineDescription}
+            action={{
+              label: messages.selectMachineAction,
+              onClick: onSelectMachine,
+            }}
+            showHistogramVisual
+          />
         </CardContent>
       </Card>
     );
@@ -475,9 +544,11 @@ export function CycleTimeHistogramChart({
             disabled={isFetching}
             onConfigurationChange={onConfigurationChange}
           />
-          <p className="my-auto text-sm text-muted-foreground">
-            {messages.noData}
-          </p>
+          <HistogramEmptyState
+            icon={SearchX}
+            title={messages.noDataTitle}
+            description={messages.noData}
+          />
         </CardContent>
       </Card>
     );
