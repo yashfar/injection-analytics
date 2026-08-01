@@ -1,4 +1,16 @@
 import type {
+  AnalysisCyclesQueryParams,
+  AnalysisCyclesResponse,
+  AnalysisFiltersResponse,
+  AnalysisHistogramQueryParams,
+  AnalysisHistogramResponse,
+  AnalysisOutliersQueryParams,
+  AnalysisOutliersResponse,
+  AnalysisQueryParams,
+  AnalysisStagesSummaryResponse,
+  AnalysisStagesTrendResponse,
+  AnalysisSummaryResponse,
+  AnalysisTrendResponse,
   AnalyticsComparablePairsResponse,
   AnalyticsOverview,
   BoxPlotFilters,
@@ -99,6 +111,10 @@ export function getTrend(
   filters: TrendFilters,
   signal?: AbortSignal,
 ): Promise<TrendResponse> {
+  if (!filters.productCode || !filters.castCode) {
+    throw new Error("Trend isteği için productCode ve castCode gereklidir.");
+  }
+
   const { from, to } = toUtcDateRangeBoundaries(
     filters.startDate,
     filters.endDate,
@@ -150,6 +166,12 @@ export function getBoxPlot(
   filters: BoxPlotFilters,
   signal?: AbortSignal,
 ): Promise<BoxPlotResponse> {
+  if (!filters.productCode || !filters.castCode) {
+    throw new Error(
+      "Kutu grafiği isteği için productCode ve castCode gereklidir.",
+    );
+  }
+
   const { from, to } = toUtcDateRangeBoundaries(
     filters.startDate,
     filters.endDate,
@@ -172,6 +194,12 @@ export function getStageBreakdown(
   filters: StageBreakdownFilters,
   signal?: AbortSignal,
 ): Promise<StageBreakdownResponse> {
+  if (!filters.productCode || !filters.castCode) {
+    throw new Error(
+      "Aşama karşılaştırma isteği için productCode ve castCode gereklidir.",
+    );
+  }
+
   const { from, to } = toUtcDateRangeBoundaries(
     filters.startDate,
     filters.endDate,
@@ -186,6 +214,116 @@ export function getStageBreakdown(
   return apiGet<StageBreakdownResponse>(
     "/analytics/stage-comparison",
     queryParams,
+    signal,
+  );
+}
+
+// Phase 1 independent-filter analysis endpoints. Kept separate from the
+// comparison functions above; nothing here is called yet.
+
+export function getFilters(
+  signal?: AbortSignal,
+): Promise<AnalysisFiltersResponse> {
+  return apiGet<AnalysisFiltersResponse>(
+    "/analytics/filters",
+    undefined,
+    signal,
+  );
+}
+
+function buildAnalysisQueryParams(params: AnalysisQueryParams): QueryParams {
+  return {
+    productCode: params.productCode,
+    castCode: params.moldCode,
+    machine: params.machineCode,
+    from: params.startDate,
+    to: params.endDate,
+  };
+}
+
+export function getAnalysisSummary(
+  params: AnalysisQueryParams,
+  signal?: AbortSignal,
+): Promise<AnalysisSummaryResponse> {
+  return apiGet<AnalysisSummaryResponse>(
+    "/analytics/analysis/summary",
+    buildAnalysisQueryParams(params),
+    signal,
+  );
+}
+
+export function getAnalysisTrend(
+  params: AnalysisQueryParams,
+  signal?: AbortSignal,
+): Promise<AnalysisTrendResponse> {
+  return apiGet<AnalysisTrendResponse>(
+    "/analytics/analysis/trend",
+    buildAnalysisQueryParams(params),
+    signal,
+  );
+}
+
+export function getAnalysisHistogram(
+  params: AnalysisHistogramQueryParams,
+  signal?: AbortSignal,
+): Promise<AnalysisHistogramResponse> {
+  return apiGet<AnalysisHistogramResponse>(
+    "/analytics/analysis/histogram",
+    {
+      ...buildAnalysisQueryParams(params),
+      binSize: params.binSize,
+      maxValue: params.maxValue,
+    },
+    signal,
+  );
+}
+
+export function getAnalysisStagesSummary(
+  params: AnalysisQueryParams,
+  signal?: AbortSignal,
+): Promise<AnalysisStagesSummaryResponse> {
+  return apiGet<AnalysisStagesSummaryResponse>(
+    "/analytics/analysis/stages/summary",
+    buildAnalysisQueryParams(params),
+    signal,
+  );
+}
+
+export function getAnalysisStagesTrend(
+  params: AnalysisQueryParams,
+  signal?: AbortSignal,
+): Promise<AnalysisStagesTrendResponse> {
+  return apiGet<AnalysisStagesTrendResponse>(
+    "/analytics/analysis/stages/trend",
+    buildAnalysisQueryParams(params),
+    signal,
+  );
+}
+
+export function getAnalysisCycles(
+  params: AnalysisCyclesQueryParams,
+  signal?: AbortSignal,
+): Promise<AnalysisCyclesResponse> {
+  return apiGet<AnalysisCyclesResponse>(
+    "/analytics/analysis/cycles",
+    {
+      ...buildAnalysisQueryParams(params),
+      limit: params.limit,
+    },
+    signal,
+  );
+}
+
+export function getAnalysisOutliers(
+  params: AnalysisOutliersQueryParams,
+  signal?: AbortSignal,
+): Promise<AnalysisOutliersResponse> {
+  return apiGet<AnalysisOutliersResponse>(
+    "/analytics/analysis/outliers",
+    {
+      ...buildAnalysisQueryParams(params),
+      limit: params.limit,
+    },
     signal,
   );
 }

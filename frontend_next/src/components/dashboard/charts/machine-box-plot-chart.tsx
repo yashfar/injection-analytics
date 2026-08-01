@@ -59,7 +59,7 @@ const chartConfig = {
 
 type MachineBoxPlotChartProps = {
   data: BoxPlotResponse | undefined;
-  requestedFilters: BoxPlotFilters;
+  requestedFilters: BoxPlotFilters | null;
   machineColorOrder: readonly string[];
   selectedMachine?: string;
   isPending: boolean;
@@ -325,7 +325,7 @@ function BoxPlotTooltip({
 
 type BoxPlotHeadingProps = {
   data?: BoxPlotResponse;
-  requestedFilters: BoxPlotFilters;
+  requestedFilters: BoxPlotFilters | null;
   isUpdating?: boolean;
   isPlaceholderData?: boolean;
 };
@@ -336,8 +336,9 @@ function BoxPlotHeading({
   isUpdating = false,
   isPlaceholderData = false,
 }: BoxPlotHeadingProps) {
-  const productCode = data?.productCode ?? requestedFilters.productCode;
-  const castCode = data?.castCode ?? requestedFilters.castCode;
+  const productCode =
+    data?.productCode ?? requestedFilters?.productCode ?? "";
+  const castCode = data?.castCode ?? requestedFilters?.castCode ?? "";
 
   return (
     <CardHeader>

@@ -55,6 +55,17 @@ const tooltipDateFormatter = new Intl.DateTimeFormat("tr-TR", {
   timeZone: "UTC",
 });
 
+const cycleTimestampFormatter = new Intl.DateTimeFormat("tr-TR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+  timeZone: "UTC",
+});
+
 function formatFiniteNumber(
   value: number,
   formatter: Intl.NumberFormat,
@@ -115,4 +126,54 @@ export function formatTrendTooltipDate(
   return bucketSize === "hour"
     ? hourlyTooltipDateFormatter.format(date)
     : tooltipDateFormatter.format(date);
+}
+
+// Second-precision timestamp for individual cycle points (analysis/cycles,
+// analysis/outliers) — none of the bucket-aware formatters above have
+// second-level precision since they're built for aggregated buckets.
+export function formatCycleTimestamp(value: string | number): string | null {
+  const date = toValidDate(value);
+
+  if (!date) {
+    return null;
+  }
+
+  return cycleTimestampFormatter.format(date);
+}
+
+const shortDateFormatter = new Intl.DateTimeFormat("tr-TR", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+// Plain day-month-year, no time — for referencing a dataset's date bounds
+// in empty-state copy (lib/empty-reason.ts), independent of any bucket.
+export function formatShortDate(value: string | number): string | null {
+  const date = toValidDate(value);
+
+  if (!date) {
+    return null;
+  }
+
+  return shortDateFormatter.format(date);
+}
+
+const HOUR_AXIS_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
+
+// Raw (unbucketed) point series — analysis/cycles, analysis/outliers —
+// have no server-provided bucketSize the way analysis/trend does. With a
+// bounded limit, the actual returned span can be much narrower than the
+// applied date range (e.g. the latest N of a much larger population may
+// only cover a few hours), so day-level axis ticks can repeat the same
+// label. Pick hour-level ticks whenever the returned points span 3 days
+// or less.
+export function selectAxisBucketSize(
+  minTimestamp: number,
+  maxTimestamp: number,
+): "hour" | "day" {
+  return maxTimestamp - minTimestamp <= HOUR_AXIS_THRESHOLD_MS
+    ? "hour"
+    : "day";
 }

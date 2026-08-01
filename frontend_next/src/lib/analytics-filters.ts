@@ -25,6 +25,8 @@ function getSortedUniqueCodes(codes: Iterable<string>): string[] {
   return [...new Set(codes)].sort(compareCodes);
 }
 
+// Phase 2 (comparison) akışında kullanılıyor. Phase 1'de filtreler bağımsız
+// olduğu için bilinçli olarak devre dışı.
 export function getUniqueProductCodes(
   comparablePairs: AnalyticsComparablePair[],
 ): string[] {
@@ -33,6 +35,8 @@ export function getUniqueProductCodes(
   );
 }
 
+// Phase 2 (comparison) akışında kullanılıyor. Phase 1'de filtreler bağımsız
+// olduğu için bilinçli olarak devre dışı.
 export function getValidCastCodes(
   comparablePairs: AnalyticsComparablePair[],
   productCode: string,
@@ -44,10 +48,14 @@ export function getValidCastCodes(
   );
 }
 
+// Phase 2 (comparison) akışında kullanılıyor. Phase 1'de filtreler bağımsız
+// olduğu için bilinçli olarak devre dışı. Parametreler, appliedFilters artık
+// undefined product/mold taşıyabildiği için (dashboard-content.tsx'teki
+// machineColorOrder hesaplaması) string | undefined kabul eder.
 export function getValidMachines(
   comparablePairs: AnalyticsComparablePair[],
-  productCode: string,
-  castCode: string,
+  productCode: string | undefined,
+  castCode: string | undefined,
 ): string[] {
   return getSortedUniqueCodes(
     comparablePairs
@@ -59,6 +67,8 @@ export function getValidMachines(
   );
 }
 
+// Phase 2 (comparison) akışında kullanılıyor. Phase 1'de filtreler bağımsız
+// olduğu için bilinçli olarak devre dışı.
 export function findFirstValidComparablePair(
   comparablePairs: AnalyticsComparablePair[],
 ): Pick<AnalyticsComparablePair, "productCode" | "castCode"> | undefined {
@@ -140,6 +150,10 @@ export function isAnalyticsSelectionValid(
   filters: AnalyticsFilters,
   comparablePairs: AnalyticsComparablePair[],
 ): boolean {
+  if (filters.productCode === undefined || filters.castCode === undefined) {
+    return false;
+  }
+
   const validCasts = getValidCastCodes(
     comparablePairs,
     filters.productCode,
@@ -174,21 +188,24 @@ export function areAnalyticsFiltersValid(
   );
 }
 
+// Phase 1: product/mold/machine no longer get an automatic default —
+// only the date range does. comparablePairs is kept in the signature
+// unchanged (unused now) so existing callers don't need to change.
 export function createDefaultAnalyticsFilters(
   comparablePairs: AnalyticsComparablePair[],
   overviewStartDate: string | null,
   overviewEndDate: string | null,
 ): AnalyticsFilters | undefined {
-  const firstPair = findFirstValidComparablePair(comparablePairs);
   const startDate = isoUtcToDateInputValue(overviewStartDate);
   const endDate = isoUtcToDateInputValue(overviewEndDate);
 
-  if (!firstPair || !isDateRangeValid(startDate, endDate)) {
+  if (!isDateRangeValid(startDate, endDate)) {
     return undefined;
   }
 
   return {
-    ...firstPair,
+    productCode: undefined,
+    castCode: undefined,
     machine: undefined,
     startDate,
     endDate,
@@ -261,7 +278,12 @@ export function toHistogramFilters(
   filters: AnalyticsFilters,
   configuration: HistogramConfiguration,
 ): HistogramFilters | null {
-  if (!filters.machine || !isHistogramConfigurationValid(configuration)) {
+  if (
+    !filters.productCode ||
+    !filters.castCode ||
+    !filters.machine ||
+    !isHistogramConfigurationValid(configuration)
+  ) {
     return null;
   }
 

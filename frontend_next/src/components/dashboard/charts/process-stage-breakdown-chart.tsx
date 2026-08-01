@@ -62,7 +62,7 @@ const chartConfig = {
 
 type ProcessStageBreakdownChartProps = {
   data: StageBreakdownResponse | undefined;
-  requestedFilters: StageBreakdownFilters;
+  requestedFilters: StageBreakdownFilters | null;
   selectedMachine?: string;
   isPending: boolean;
   isError: boolean;
@@ -262,12 +262,13 @@ function StageBreakdownHeading({
   isPlaceholderData = false,
 }: {
   data?: StageBreakdownResponse;
-  requestedFilters: StageBreakdownFilters;
+  requestedFilters: StageBreakdownFilters | null;
   isUpdating?: boolean;
   isPlaceholderData?: boolean;
 }) {
-  const productCode = data?.productCode ?? requestedFilters.productCode;
-  const castCode = data?.castCode ?? requestedFilters.castCode;
+  const productCode =
+    data?.productCode ?? requestedFilters?.productCode ?? "";
+  const castCode = data?.castCode ?? requestedFilters?.castCode ?? "";
 
   return (
     <CardHeader>

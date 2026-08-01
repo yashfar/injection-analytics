@@ -1,10 +1,12 @@
 "use client";
 
 import type { FormEvent, Ref } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -19,57 +21,70 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  areAnalyticsFiltersValid,
-  getUniqueProductCodes,
-  getValidCastCodes,
-  getValidMachines,
-  isDateOnlyWithinBounds,
-  isValidDateOnly,
-} from "@/lib/analytics-filters";
+import { Skeleton } from "@/components/ui/skeleton";
+import { isDateOnlyWithinBounds, isValidDateOnly } from "@/lib/analytics-filters";
 import { MACHINE_FILTER_TRIGGER_ID } from "@/lib/dashboard-element-ids";
 import { cn } from "@/lib/utils";
-import type {
-  AnalyticsComparablePair,
-  AnalyticsFilters,
-} from "@/types/analytics";
+import { useFiltersQuery } from "@/queries/analytics.queries";
+import type { AnalyticsFilters } from "@/types/analytics";
 
-const ALL_MACHINES_VALUE = "__all__";
+// Shared "no restriction on this dimension" sentinel for all three
+// independent selects (Radix Select rejects an actual empty-string value).
+const ALL_FILTER_VALUE = "__all__";
+
+function fromSelectValue(value: string): string | undefined {
+  return value === ALL_FILTER_VALUE ? undefined : value;
+}
+
+function isFiltersIdentical(
+  draft: AnalyticsFilters,
+  applied: AnalyticsFilters | null,
+): boolean {
+  if (applied === null) {
+    return false;
+  }
+
+  return (
+    draft.productCode === applied.productCode &&
+    draft.castCode === applied.castCode &&
+    draft.machine === applied.machine &&
+    draft.startDate === applied.startDate &&
+    draft.endDate === applied.endDate
+  );
+}
 
 type DashboardFiltersProps = {
-  comparablePairs: AnalyticsComparablePair[];
   draftFilters?: AnalyticsFilters;
+  appliedFilters: AnalyticsFilters | null;
   dateMin: string;
   dateMax: string;
   onDraftFiltersChange: (filters: AnalyticsFilters) => void;
   onApply: () => void;
+  onReset: () => void;
   machineFilterRef?: Ref<HTMLButtonElement>;
   isMachineFilterAttentionActive?: boolean;
   disabled?: boolean;
 };
 
 export function DashboardFilters({
-  comparablePairs,
   draftFilters,
+  appliedFilters,
   dateMin,
   dateMax,
   onDraftFiltersChange,
   onApply,
+  onReset,
   machineFilterRef,
   isMachineFilterAttentionActive = false,
   disabled = false,
 }: DashboardFiltersProps) {
-  const productCodes = getUniqueProductCodes(comparablePairs);
-  const castCodes = draftFilters
-    ? getValidCastCodes(comparablePairs, draftFilters.productCode)
-    : [];
-  const machines = draftFilters
-    ? getValidMachines(
-        comparablePairs,
-        draftFilters.productCode,
-        draftFilters.castCode,
-      )
-    : [];
+  const filtersQuery = useFiltersQuery();
+  const productCodes = filtersQuery.data?.products ?? [];
+  const castCodes = filtersQuery.data?.molds ?? [];
+  const machines = filtersQuery.data?.machines ?? [];
+  const isFiltersLoading = filtersQuery.isPending;
+  const isSelectDisabled = disabled || isFiltersLoading;
+
   const isStartDateValid = Boolean(
     draftFilters && isValidDateOnly(draftFilters.startDate),
   );
@@ -118,57 +133,57 @@ export function DashboardFilters({
   const isEndDateInvalid =
     Boolean(draftFilters) &&
     (!isEndDateValid || isDateOrderInvalid || isEndDateOutOfRange);
+  const hasValidDateRange =
+    isStartDateValid &&
+    isEndDateValid &&
+    !isDateOrderInvalid &&
+    !isStartDateOutOfRange &&
+    !isEndDateOutOfRange;
   const canApply = Boolean(
     draftFilters &&
       !disabled &&
-      areAnalyticsFiltersValid(
-        draftFilters,
-        comparablePairs,
-        dateMin || undefined,
-        dateMax || undefined,
-      ),
+      hasValidDateRange &&
+      !isFiltersIdentical(draftFilters, appliedFilters),
+  );
+  // Distinguishes "first apply" from "you have unapplied changes to
+  // already-shown results" — the chip strip and charts still reflect
+  // appliedFilters until this button is pressed again.
+  const hasPendingChanges = Boolean(
+    draftFilters &&
+      appliedFilters !== null &&
+      !isFiltersIdentical(draftFilters, appliedFilters),
   );
 
-  function handleProductChange(productCode: string | null) {
-    if (!draftFilters || !productCode) {
-      return;
-    }
-
-    const castCode = getValidCastCodes(comparablePairs, productCode)[0];
-
-    if (!castCode) {
+  function handleProductChange(value: string | null) {
+    if (!draftFilters || value === null) {
       return;
     }
 
     onDraftFiltersChange({
       ...draftFilters,
-      productCode,
-      castCode,
-      machine: undefined,
+      productCode: fromSelectValue(value),
     });
   }
 
-  function handleCastChange(castCode: string | null) {
-    if (!draftFilters || !castCode) {
+  function handleCastChange(value: string | null) {
+    if (!draftFilters || value === null) {
       return;
     }
 
     onDraftFiltersChange({
       ...draftFilters,
-      castCode,
-      machine: undefined,
+      castCode: fromSelectValue(value),
     });
   }
 
-  function handleMachineChange(machineValue: string | null) {
-    if (!draftFilters || !machineValue) {
+  function handleMachineChange(value: string | null) {
+    if (!draftFilters || value === null) {
       return;
     }
 
     onDraftFiltersChange({
       ...draftFilters,
-      machine:
-        machineValue === ALL_MACHINES_VALUE ? undefined : machineValue,
+      machine: fromSelectValue(value),
     });
   }
 
@@ -180,16 +195,45 @@ export function DashboardFilters({
     }
   }
 
+  if (filtersQuery.isError) {
+    return (
+      <Card className="sticky top-0 z-10 shadow-md">
+        <CardHeader>
+          <CardTitle>
+            <h2>Analiz Filtreleri</h2>
+          </CardTitle>
+          <CardDescription>Filtre seçenekleri yüklenemedi.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            type="button"
+            onClick={() => void filtersQuery.refetch()}
+            disabled={filtersQuery.isFetching}
+          >
+            {filtersQuery.isFetching ? "Yeniden deneniyor..." : "Tekrar dene"}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
+    <Card className="sticky top-0 z-10 shadow-md">
       <CardHeader>
         <CardTitle>
           <h2>Analiz Filtreleri</h2>
         </CardTitle>
         <CardDescription>
-          Grafik analizleri için karşılaştırılabilir bir ürün ve kalıp
-          kombinasyonu seçin.
+          Ürün, kalıp ve makine filtreleri birbirinden bağımsızdır.
         </CardDescription>
+        <CardAction>
+          <Link
+            href="/comparison"
+            className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Karşılaştırma görünümü
+          </Link>
+        </CardAction>
       </CardHeader>
       <CardContent>
         <form
@@ -198,78 +242,98 @@ export function DashboardFilters({
         >
           <div className="space-y-2 lg:col-span-1">
             <Label htmlFor="product-filter">Ürün</Label>
-            <Select
-              value={draftFilters?.productCode}
-              onValueChange={handleProductChange}
-              disabled={disabled || productCodes.length === 0}
-            >
-              <SelectTrigger id="product-filter" className="w-full">
-                <SelectValue placeholder="Ürün seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                {productCodes.map((productCode) => (
-                  <SelectItem key={productCode} value={productCode}>
-                    {productCode}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isFiltersLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Select
+                value={
+                  draftFilters
+                    ? (draftFilters.productCode ?? ALL_FILTER_VALUE)
+                    : undefined
+                }
+                onValueChange={handleProductChange}
+                disabled={isSelectDisabled}
+              >
+                <SelectTrigger id="product-filter" className="w-full">
+                  <SelectValue placeholder="Ürün seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>Tümü</SelectItem>
+                  {productCodes.map((productCode) => (
+                    <SelectItem key={productCode} value={productCode}>
+                      {productCode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2 lg:col-span-1">
             <Label htmlFor="mold-filter">Kalıp</Label>
-            <Select
-              value={draftFilters?.castCode}
-              onValueChange={handleCastChange}
-              disabled={disabled || castCodes.length === 0}
-            >
-              <SelectTrigger id="mold-filter" className="w-full">
-                <SelectValue placeholder="Kalıp seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                {castCodes.map((castCode) => (
-                  <SelectItem key={castCode} value={castCode}>
-                    {castCode}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isFiltersLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Select
+                value={
+                  draftFilters
+                    ? (draftFilters.castCode ?? ALL_FILTER_VALUE)
+                    : undefined
+                }
+                onValueChange={handleCastChange}
+                disabled={isSelectDisabled}
+              >
+                <SelectTrigger id="mold-filter" className="w-full">
+                  <SelectValue placeholder="Kalıp seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>Tümü</SelectItem>
+                  {castCodes.map((castCode) => (
+                    <SelectItem key={castCode} value={castCode}>
+                      {castCode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2 lg:col-span-1">
             <Label htmlFor={MACHINE_FILTER_TRIGGER_ID}>Makine</Label>
-            <Select
-              value={
-                draftFilters
-                  ? (draftFilters.machine ?? ALL_MACHINES_VALUE)
-                  : undefined
-              }
-              onValueChange={handleMachineChange}
-              disabled={disabled || machines.length === 0}
-            >
-              <SelectTrigger
-                ref={machineFilterRef}
-                id={MACHINE_FILTER_TRIGGER_ID}
-                data-attention={isMachineFilterAttentionActive}
-                className={cn(
-                  "w-full scroll-m-6",
-                  "data-[attention=true]:border-primary data-[attention=true]:ring-3 data-[attention=true]:ring-primary/40",
-                  "motion-safe:data-[attention=true]:animate-pulse",
-                )}
+            {isFiltersLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Select
+                value={
+                  draftFilters
+                    ? (draftFilters.machine ?? ALL_FILTER_VALUE)
+                    : undefined
+                }
+                onValueChange={handleMachineChange}
+                disabled={isSelectDisabled}
               >
-                <SelectValue placeholder="Makine seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_MACHINES_VALUE}>
-                  Tüm makineler
-                </SelectItem>
-                {machines.map((machine) => (
-                  <SelectItem key={machine} value={machine}>
-                    {machine}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  ref={machineFilterRef}
+                  id={MACHINE_FILTER_TRIGGER_ID}
+                  data-attention={isMachineFilterAttentionActive}
+                  className={cn(
+                    "w-full scroll-m-6",
+                    "data-[attention=true]:border-primary data-[attention=true]:ring-3 data-[attention=true]:ring-primary/40",
+                    "motion-safe:data-[attention=true]:animate-pulse",
+                  )}
+                >
+                  <SelectValue placeholder="Makine seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>Tümü</SelectItem>
+                  {machines.map((machine) => (
+                    <SelectItem key={machine} value={machine}>
+                      {machine}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2 lg:col-span-1">
@@ -320,9 +384,19 @@ export function DashboardFilters({
             />
           </div>
 
-          <div className="flex items-end lg:col-span-1">
+          <div className="flex items-end gap-2 lg:col-span-1">
             <Button type="submit" className="w-full" disabled={!canApply}>
-              Filtreleri Uygula
+              {hasPendingChanges
+                ? "Değişiklikleri Uygula"
+                : "Filtreleri Uygula"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onReset}
+              disabled={isSelectDisabled}
+            >
+              Sıfırla
             </Button>
           </div>
 

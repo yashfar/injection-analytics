@@ -5,6 +5,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   getBoxPlot,
   getComparablePairs,
+  getFilters,
   getHistogram,
   getMachineComparison,
   getOverview,
@@ -15,7 +16,7 @@ import {
   isDateRangeValid,
   isHistogramConfigurationValid,
 } from "@/lib/analytics-filters";
-import { analyticsKeys } from "@/lib/query-keys";
+import { analysisKeys, analyticsKeys } from "@/lib/query-keys";
 import type {
   BoxPlotFilters,
   HistogramFilters,
@@ -28,6 +29,17 @@ export function useAnalyticsOverviewQuery() {
   return useQuery({
     queryKey: analyticsKeys.overview(),
     queryFn: ({ signal }) => getOverview(signal),
+  });
+}
+
+// Phase 1: independent filter options. Loads on mount like the legacy
+// comparable-pairs query below; the "wait for Apply" rule only applies to
+// /analytics/analysis/* queries, not to this one.
+export function useFiltersQuery() {
+  return useQuery({
+    queryKey: analysisKeys.filters(),
+    queryFn: ({ signal }) => getFilters(signal),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

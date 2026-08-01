@@ -1,4 +1,8 @@
 import type {
+  AnalysisCyclesQueryParams,
+  AnalysisHistogramQueryParams,
+  AnalysisOutliersQueryParams,
+  AnalysisQueryParams,
   BoxPlotFilters,
   HistogramFilters,
   MachineComparisonFilters,
@@ -59,6 +63,101 @@ export const analyticsKeys = {
         castCode: filters.castCode,
         startDate: filters.startDate,
         endDate: filters.endDate,
+      },
+    ] as const,
+};
+
+// Phase 1 independent-filter analysis keys. Fully separate from
+// analyticsKeys above so invalidating one never affects the other.
+export const analysisKeys = {
+  all: ["analysis"] as const,
+  filters: () => [...analysisKeys.all, "filters"] as const,
+  summary: (params: AnalysisQueryParams) =>
+    [
+      ...analysisKeys.all,
+      "summary",
+      {
+        productCode: params.productCode ?? null,
+        moldCode: params.moldCode ?? null,
+        machineCode: params.machineCode ?? null,
+        startDate: params.startDate,
+        endDate: params.endDate,
+      },
+    ] as const,
+  trend: (params: AnalysisQueryParams) =>
+    [
+      ...analysisKeys.all,
+      "trend",
+      {
+        productCode: params.productCode ?? null,
+        moldCode: params.moldCode ?? null,
+        machineCode: params.machineCode ?? null,
+        startDate: params.startDate,
+        endDate: params.endDate,
+      },
+    ] as const,
+  histogram: (params: AnalysisHistogramQueryParams) =>
+    [
+      ...analysisKeys.all,
+      "histogram",
+      {
+        productCode: params.productCode ?? null,
+        moldCode: params.moldCode ?? null,
+        machineCode: params.machineCode ?? null,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        binSize: params.binSize ?? null,
+        maxValue: params.maxValue ?? null,
+      },
+    ] as const,
+  stagesSummary: (params: AnalysisQueryParams) =>
+    [
+      ...analysisKeys.all,
+      "stages-summary",
+      {
+        productCode: params.productCode ?? null,
+        moldCode: params.moldCode ?? null,
+        machineCode: params.machineCode ?? null,
+        startDate: params.startDate,
+        endDate: params.endDate,
+      },
+    ] as const,
+  stagesTrend: (params: AnalysisQueryParams) =>
+    [
+      ...analysisKeys.all,
+      "stages-trend",
+      {
+        productCode: params.productCode ?? null,
+        moldCode: params.moldCode ?? null,
+        machineCode: params.machineCode ?? null,
+        startDate: params.startDate,
+        endDate: params.endDate,
+      },
+    ] as const,
+  cycles: (params: AnalysisCyclesQueryParams) =>
+    [
+      ...analysisKeys.all,
+      "cycles",
+      {
+        productCode: params.productCode ?? null,
+        moldCode: params.moldCode ?? null,
+        machineCode: params.machineCode ?? null,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        limit: params.limit ?? null,
+      },
+    ] as const,
+  outliers: (params: AnalysisOutliersQueryParams) =>
+    [
+      ...analysisKeys.all,
+      "outliers",
+      {
+        productCode: params.productCode ?? null,
+        moldCode: params.moldCode ?? null,
+        machineCode: params.machineCode ?? null,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        limit: params.limit ?? null,
       },
     ] as const,
 };

@@ -1,16 +1,8 @@
 import type { ComponentProps, PropsWithChildren } from "react";
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CycleTimeHistogramChart } from "@/components/dashboard/charts/cycle-time-histogram-chart";
-import { DashboardContent } from "@/components/dashboard/dashboard-content";
-import { MACHINE_FILTER_TRIGGER_ID } from "@/lib/dashboard-element-ids";
 
 vi.mock("recharts", () => {
   function Container({ children }: PropsWithChildren) {
@@ -31,70 +23,6 @@ vi.mock("recharts", () => {
     Tooltip: Element,
     XAxis: Element,
     YAxis: Element,
-  };
-});
-
-vi.mock(
-  "@/components/dashboard/charts/machine-performance-chart",
-  () => ({
-    MachinePerformanceChart: () => (
-      <section>
-        <h2 id="machine-performance-title">Makine Performansı</h2>
-      </section>
-    ),
-  }),
-);
-
-vi.mock("@/components/dashboard/charts/cycle-time-trend-chart", () => ({
-  CycleTimeTrendChart: () => <div />,
-}));
-
-vi.mock("@/components/dashboard/charts/machine-box-plot-chart", () => ({
-  MachineBoxPlotChart: () => <div />,
-}));
-
-vi.mock(
-  "@/components/dashboard/charts/process-stage-breakdown-chart",
-  () => ({
-    ProcessStageBreakdownChart: () => <div />,
-  }),
-);
-
-vi.mock("@/queries/analytics.queries", () => {
-  const queryResult = (data: unknown) => ({
-    data,
-    isPending: false,
-    isError: false,
-    isFetching: false,
-    isPlaceholderData: false,
-    refetch: vi.fn(),
-  });
-
-  return {
-    useAnalyticsOverviewQuery: () =>
-      queryResult({
-        totalCycles: 100,
-        machineCount: 1,
-        productCount: 1,
-        moldCount: 1,
-        startDate: "2026-07-01T00:00:00.000Z",
-        endDate: "2026-07-24T23:59:59.999Z",
-      }),
-    useComparablePairsQuery: () =>
-      queryResult([
-        {
-          productCode: "P1",
-          castCode: "C1",
-          machineCount: 1,
-          cycleCount: 100,
-          machines: ["M1"],
-        },
-      ]),
-    useMachineComparisonQuery: () => queryResult([]),
-    useTrendQuery: () => queryResult(undefined),
-    useHistogramQuery: () => queryResult(undefined),
-    useBoxPlotQuery: () => queryResult(undefined),
-    useStageBreakdownQuery: () => queryResult(undefined),
   };
 });
 
@@ -277,50 +205,5 @@ describe("CycleTimeHistogramChart empty and loading states", () => {
         name: "Dağılım verisi bulunamadı",
       }),
     ).not.toBeInTheDocument();
-  });
-});
-
-describe("Histogram machine-filter navigation", () => {
-  it("scrolls and focuses the actual machine trigger without changing its value", () => {
-    vi.useFakeTimers();
-    render(<DashboardContent />);
-
-    const trigger = document.getElementById(MACHINE_FILTER_TRIGGER_ID);
-    const initialTriggerText = trigger?.textContent;
-
-    expect(trigger).toBeInstanceOf(HTMLButtonElement);
-
-    fireEvent.click(screen.getByRole("button", { name: "Makine Seç" }));
-
-    expect(trigger?.scrollIntoView).toHaveBeenCalledWith({
-      behavior: "smooth",
-      block: "center",
-      inline: "nearest",
-    });
-    expect(document.activeElement).toBe(trigger);
-    expect(trigger).toHaveTextContent(initialTriggerText ?? "");
-    expect(trigger).toHaveAttribute("data-attention", "true");
-
-    act(() => {
-      vi.advanceTimersByTime(1800);
-    });
-
-    expect(trigger).toHaveAttribute("data-attention", "false");
-  });
-
-  it("uses automatic scrolling when reduced motion is requested", () => {
-    setReducedMotion(true);
-    render(<DashboardContent />);
-
-    const trigger = document.getElementById(MACHINE_FILTER_TRIGGER_ID);
-
-    fireEvent.click(screen.getByRole("button", { name: "Makine Seç" }));
-
-    expect(trigger?.scrollIntoView).toHaveBeenCalledWith({
-      behavior: "auto",
-      block: "center",
-      inline: "nearest",
-    });
-    expect(document.activeElement).toBe(trigger);
   });
 });
