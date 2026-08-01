@@ -95,7 +95,7 @@ export function DashboardFilters({
   const castCodes = filtersQuery.data?.molds ?? [];
   const machines = filtersQuery.data?.machines ?? [];
   const isFiltersLoading = filtersQuery.isPending;
-  const isSelectDisabled = disabled || isFiltersLoading;
+  const isSelectDisabled = disabled || isFiltersLoading || !draftFilters;
 
   const isStartDateValid = Boolean(
     draftFilters && isValidDateOnly(draftFilters.startDate),
@@ -137,7 +137,9 @@ export function DashboardFilters({
       ? "Başlangıç tarihi bitiş tarihinden sonra olamaz."
       : hasOutOfRangeDate
         ? `${dateMin} ile ${dateMax} arasındaki tarihleri seçin.`
-        : undefined;
+        : !isFiltersLoading && (!dateMin || !dateMax)
+          ? "Analiz tarih aralığı mevcut değil."
+          : undefined;
   const isStartDateInvalid =
     Boolean(draftFilters) &&
     (!isStartDateValid || isDateOrderInvalid || isStartDateOutOfRange);
@@ -258,9 +260,7 @@ export function DashboardFilters({
             ) : (
               <Select
                 value={
-                  draftFilters
-                    ? (draftFilters.productCode ?? ALL_FILTER_VALUE)
-                    : undefined
+                  draftFilters?.productCode ?? ALL_FILTER_VALUE
                 }
                 onValueChange={handleProductChange}
                 disabled={isSelectDisabled}
@@ -289,9 +289,7 @@ export function DashboardFilters({
             ) : (
               <Select
                 value={
-                  draftFilters
-                    ? (draftFilters.castCode ?? ALL_FILTER_VALUE)
-                    : undefined
+                  draftFilters?.castCode ?? ALL_FILTER_VALUE
                 }
                 onValueChange={handleCastChange}
                 disabled={isSelectDisabled}
@@ -320,9 +318,7 @@ export function DashboardFilters({
             ) : (
               <Select
                 value={
-                  draftFilters
-                    ? (draftFilters.machine ?? ALL_FILTER_VALUE)
-                    : undefined
+                  draftFilters?.machine ?? ALL_FILTER_VALUE
                 }
                 onValueChange={handleMachineChange}
                 disabled={isSelectDisabled}
@@ -360,7 +356,7 @@ export function DashboardFilters({
               type="date"
               min={dateMin || undefined}
               max={dateMax || undefined}
-              value={draftFilters?.startDate ?? dateMin}
+              value={draftFilters?.startDate ?? ""}
               onChange={(event) => {
                 if (draftFilters) {
                   onDraftFiltersChange({
@@ -384,7 +380,7 @@ export function DashboardFilters({
               type="date"
               min={dateMin || undefined}
               max={dateMax || undefined}
-              value={draftFilters?.endDate ?? dateMax}
+              value={draftFilters?.endDate ?? ""}
               onChange={(event) => {
                 if (draftFilters) {
                   onDraftFiltersChange({

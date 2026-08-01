@@ -23,18 +23,31 @@ import type { AnalysisTrendResponse } from "@/types/analytics";
 
 type BucketSize = Exclude<AnalysisTrendResponse["bucketSize"], null>;
 
+const TREND_SERIES = {
+  average: {
+    dataKey: "averageCycleTime",
+    label: "Ortalama çevrim süresi",
+    color: "var(--color-averageCycleTime)",
+  },
+  median: {
+    dataKey: "medianCycleTime",
+    label: "Medyan çevrim süresi",
+    color: "var(--color-medianCycleTime)",
+  },
+} as const;
+
 const chartConfig = {
-  medianCycleTime: {
-    label: "Medyan Çevrim Süresi",
+  [TREND_SERIES.average.dataKey]: {
+    label: TREND_SERIES.average.label,
     color: "var(--chart-1)",
   },
-  averageCycleTime: {
-    label: "Ortalama Çevrim Süresi",
+  [TREND_SERIES.median.dataKey]: {
+    label: TREND_SERIES.median.label,
     color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
-function getBucketLabel(bucketSize: BucketSize): string {
+export function getBucketLabel(bucketSize: BucketSize): string {
   switch (bucketSize) {
     case "hour":
       return "Saatlik görünüm";
@@ -57,7 +70,35 @@ type TrendTooltipContentProps = {
   rows: AnalysisTrendChartRow[];
 };
 
-function TrendTooltipContent({
+type TrendTooltipSeriesRowProps = {
+  series: (typeof TREND_SERIES)["average" | "median"];
+  value: number;
+};
+
+function TrendTooltipSeriesRow({ series, value }: TrendTooltipSeriesRowProps) {
+  return (
+    <div
+      className="col-span-2 grid grid-cols-subgrid items-center"
+      data-testid={`${series.dataKey}-tooltip-row`}
+      style={{ color: series.color }}
+    >
+      <dt className="flex items-center gap-2 font-medium">
+        <span
+          aria-hidden="true"
+          data-testid={`${series.dataKey}-tooltip-marker`}
+          className="h-0.5 w-4 shrink-0 rounded-full"
+          style={{ backgroundColor: series.color }}
+        />
+        {series.label}
+      </dt>
+      <dd className="text-right font-semibold tabular-nums">
+        {formatSeconds(value)}
+      </dd>
+    </div>
+  );
+}
+
+export function TrendTooltipContent({
   active,
   timestamp,
   bucketSize,
@@ -83,14 +124,14 @@ function TrendTooltipContent({
         </p>
       ) : null}
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5">
-        <dt className="text-muted-foreground">Medyan Çevrim Süresi</dt>
-        <dd className="text-right font-medium text-foreground">
-          {formatSeconds(row.medianCycleTime)}
-        </dd>
-        <dt className="text-muted-foreground">Ortalama Çevrim Süresi</dt>
-        <dd className="text-right font-medium text-foreground">
-          {formatSeconds(row.averageCycleTime)}
-        </dd>
+        <TrendTooltipSeriesRow
+          series={TREND_SERIES.average}
+          value={row.averageCycleTime}
+        />
+        <TrendTooltipSeriesRow
+          series={TREND_SERIES.median}
+          value={row.medianCycleTime}
+        />
         <dt className="text-muted-foreground">Minimum Çevrim Süresi</dt>
         <dd className="text-right font-medium text-foreground">
           {formatSeconds(row.minimumCycleTime)}
@@ -126,7 +167,8 @@ export function AnalysisTrendChart({ data }: AnalysisTrendChartProps) {
 
   return (
     <div className="min-w-0 space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
+        <span>Zaman gruplaması:</span>
         <Badge variant="secondary">{getBucketLabel(bucketSize)}</Badge>
       </div>
       <ChartContainer
@@ -181,9 +223,9 @@ export function AnalysisTrendChart({ data }: AnalysisTrendChartProps) {
           />
           <Line
             type="linear"
-            dataKey="medianCycleTime"
-            name="Medyan Çevrim Süresi"
-            stroke="var(--color-medianCycleTime)"
+            dataKey={TREND_SERIES.median.dataKey}
+            name={TREND_SERIES.median.label}
+            stroke={TREND_SERIES.median.color}
             strokeWidth={2.5}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -191,7 +233,7 @@ export function AnalysisTrendChart({ data }: AnalysisTrendChartProps) {
               rows.length <= 30
                 ? {
                     r: 2.5,
-                    fill: "var(--color-medianCycleTime)",
+                    fill: TREND_SERIES.median.color,
                     stroke: "var(--background)",
                     strokeWidth: 1.5,
                   }
@@ -199,7 +241,7 @@ export function AnalysisTrendChart({ data }: AnalysisTrendChartProps) {
             }
             activeDot={{
               r: 5,
-              fill: "var(--color-medianCycleTime)",
+              fill: TREND_SERIES.median.color,
               stroke: "var(--background)",
               strokeWidth: 2,
             }}
@@ -208,15 +250,15 @@ export function AnalysisTrendChart({ data }: AnalysisTrendChartProps) {
           />
           <Line
             type="linear"
-            dataKey="averageCycleTime"
-            name="Ortalama Çevrim Süresi"
-            stroke="var(--color-averageCycleTime)"
+            dataKey={TREND_SERIES.average.dataKey}
+            name={TREND_SERIES.average.label}
+            stroke={TREND_SERIES.average.color}
             strokeWidth={1.75}
             strokeDasharray="4 3"
             dot={false}
             activeDot={{
               r: 4,
-              fill: "var(--color-averageCycleTime)",
+              fill: TREND_SERIES.average.color,
               stroke: "var(--background)",
               strokeWidth: 2,
             }}
@@ -225,6 +267,36 @@ export function AnalysisTrendChart({ data }: AnalysisTrendChartProps) {
           />
         </LineChart>
       </ChartContainer>
+      <div
+        aria-label="Trend serileri"
+        className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"
+        role="list"
+      >
+        {[
+          { ...TREND_SERIES.average, prefix: "Mavi çizgi" },
+          { ...TREND_SERIES.median, prefix: "Yeşil çizgi" },
+        ].map((series) => (
+          <div key={series.dataKey} className="flex items-center gap-2" role="listitem">
+            <span
+              aria-hidden="true"
+              className="h-0.5 w-5 shrink-0 rounded-full"
+              style={{ backgroundColor: series.color }}
+            />
+            <span>
+              <span className="font-medium">{series.prefix}:</span>{" "}
+              {series.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-2 text-sm leading-6 text-muted-foreground">
+        <p>
+          Çizgiler birbirine yakınsa çevrim süreleri daha dengeli ilerliyor olabilir. Ortalama medyandan belirgin şekilde yüksekse, uzun süren çevrimler veya ani sıçramalar ortalamayı yukarı çekiyor olabilir. Her iki çizginin birlikte yükselmesi genel çevrim süresinde artışa işaret edebilir.
+        </p>
+        <p>
+          Bu grafik sorunun nedenini tek başına göstermez; değişimin ne zaman ve nasıl gerçekleştiğini anlamaya yardımcı olur.
+        </p>
+      </div>
     </div>
   );
 }
