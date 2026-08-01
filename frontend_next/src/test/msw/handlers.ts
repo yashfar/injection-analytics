@@ -20,11 +20,15 @@ export const mockResponses = {
 };
 
 export const mockStatus = {
+  filters: 200,
+  overview: 200,
   summary: 200,
   trend: 200,
 };
 
 export const mockDelayMs = {
+  filters: 0,
+  overview: 0,
   summary: 0,
   trend: 0,
 };
@@ -39,21 +43,47 @@ export function resetMockResponses() {
   mockResponses.stagesTrend = fixtures.EMPTY_STAGES_TREND_FIXTURE;
   mockResponses.cycles = fixtures.EMPTY_CYCLES_FIXTURE;
   mockResponses.outliers = fixtures.EMPTY_OUTLIERS_FIXTURE;
+  mockStatus.filters = 200;
+  mockStatus.overview = 200;
   mockStatus.summary = 200;
   mockStatus.trend = 200;
+  mockDelayMs.filters = 0;
+  mockDelayMs.overview = 0;
   mockDelayMs.summary = 0;
   mockDelayMs.trend = 0;
 }
 
 export const handlers = [
-  http.get(`${API_BASE_URL}/analytics/filters`, () =>
-    HttpResponse.json(mockResponses.filters),
-  ),
-  // Not one of the 7 analysis endpoints, but DashboardContent's overview
-  // query gates everything else and has to resolve for any of them to fire.
-  http.get(`${API_BASE_URL}/analytics/overview`, () =>
-    HttpResponse.json(mockResponses.overview),
-  ),
+  http.get(`${API_BASE_URL}/analytics/filters`, async () => {
+    if (mockDelayMs.filters > 0) {
+      await delay(mockDelayMs.filters);
+    }
+
+    if (mockStatus.filters !== 200) {
+      return HttpResponse.json(
+        { message: "Filtre seçenekleri yüklenemedi" },
+        { status: mockStatus.filters },
+      );
+    }
+
+    return HttpResponse.json(mockResponses.filters);
+  }),
+  // Not one of the 7 analysis endpoints. The Phase 1 filter panel no longer
+  // waits for this legacy overview query to resolve.
+  http.get(`${API_BASE_URL}/analytics/overview`, async () => {
+    if (mockDelayMs.overview > 0) {
+      await delay(mockDelayMs.overview);
+    }
+
+    if (mockStatus.overview !== 200) {
+      return HttpResponse.json(
+        { message: "Analiz verileri yüklenemedi" },
+        { status: mockStatus.overview },
+      );
+    }
+
+    return HttpResponse.json(mockResponses.overview);
+  }),
   http.get(`${API_BASE_URL}/analytics/analysis/summary`, async () => {
     if (mockDelayMs.summary > 0) {
       await delay(mockDelayMs.summary);

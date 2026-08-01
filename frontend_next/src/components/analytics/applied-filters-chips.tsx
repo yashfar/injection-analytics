@@ -9,7 +9,7 @@ type ChipDefinition = {
 
 type AppliedFiltersChipsProps = {
   appliedFilters: AnalyticsFilters;
-  onRemoveFilter: (filterKey: "productCode" | "castCode" | "machine") => void;
+  onRemoveFilter?: (filterKey: "productCode" | "castCode" | "machine") => void;
 };
 
 // Always reflects appliedFilters, never draftFilters — this is the strip
@@ -21,17 +21,18 @@ export function AppliedFiltersChips({
 }: AppliedFiltersChipsProps) {
   const chips: ChipDefinition[] = [];
 
-  if (appliedFilters.productCode) {
-    chips.push({ key: "productCode", label: `Ürün: ${appliedFilters.productCode}` });
-  }
-
-  if (appliedFilters.castCode) {
-    chips.push({ key: "castCode", label: `Kalıp: ${appliedFilters.castCode}` });
-  }
-
-  if (appliedFilters.machine) {
-    chips.push({ key: "machine", label: `Makine: ${appliedFilters.machine}` });
-  }
+  chips.push({
+    key: "productCode",
+    label: `Ürün: ${appliedFilters.productCode ?? "Tümü"}`,
+  });
+  chips.push({
+    key: "castCode",
+    label: `Kalıp: ${appliedFilters.castCode ?? "Tümü"}`,
+  });
+  chips.push({
+    key: "machine",
+    label: `Makine: ${appliedFilters.machine ?? "Tümü"}`,
+  });
 
   return (
     <div
@@ -52,14 +53,16 @@ export function AppliedFiltersChips({
           className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted py-1 pr-1 pl-3 text-xs font-medium whitespace-nowrap text-foreground"
         >
           {chip.label}
-          <button
-            type="button"
-            onClick={() => onRemoveFilter(chip.key)}
-            aria-label={`${chip.label} filtresini kaldır`}
-            className="rounded-full p-1 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="size-3" aria-hidden="true" />
-          </button>
+          {onRemoveFilter ? (
+            <button
+              type="button"
+              onClick={() => onRemoveFilter(chip.key)}
+              aria-label={`${chip.label} filtresini kaldır`}
+              className="rounded-full p-1 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          ) : null}
         </span>
       ))}
     </div>

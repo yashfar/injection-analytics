@@ -1,3 +1,4 @@
+import { ANALYSIS_DEFAULTS } from "@/lib/analysis-defaults";
 import type {
   AnalysisCyclesQueryParams,
   AnalysisHistogramQueryParams,
@@ -106,8 +107,8 @@ export const analysisKeys = {
         machineCode: params.machineCode ?? null,
         startDate: params.startDate,
         endDate: params.endDate,
-        binSize: params.binSize ?? null,
-        maxValue: params.maxValue ?? null,
+        binSize: params.binSize ?? ANALYSIS_DEFAULTS.histogram.binSize,
+        maxValue: params.maxValue ?? ANALYSIS_DEFAULTS.histogram.maxValue,
       },
     ] as const,
   stagesSummary: (params: AnalysisQueryParams) =>
@@ -144,7 +145,7 @@ export const analysisKeys = {
         machineCode: params.machineCode ?? null,
         startDate: params.startDate,
         endDate: params.endDate,
-        limit: params.limit ?? null,
+        limit: params.limit ?? ANALYSIS_DEFAULTS.cycles.limit,
       },
     ] as const,
   outliers: (params: AnalysisOutliersQueryParams) =>
@@ -157,7 +158,7 @@ export const analysisKeys = {
         machineCode: params.machineCode ?? null,
         startDate: params.startDate,
         endDate: params.endDate,
-        limit: params.limit ?? null,
+        limit: params.limit ?? ANALYSIS_DEFAULTS.outliers.limit,
       },
     ] as const,
 };

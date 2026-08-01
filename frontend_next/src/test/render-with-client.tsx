@@ -15,7 +15,9 @@ export function renderWithClient(ui: ReactElement) {
     },
   });
 
-  return render(
+  const renderResult = render(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
   );
+
+  return { ...renderResult, queryClient };
 }

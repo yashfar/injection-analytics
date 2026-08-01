@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AnalysisChartShell } from "@/components/analytics/analysis-chart-shell";
 import { AnalysisCyclesChart } from "@/components/analytics/analysis-cycles-chart";
@@ -18,17 +18,22 @@ import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { DashboardLoading } from "@/components/dashboard/dashboard-loading";
 import { OverviewCards } from "@/components/dashboard/overview-cards";
 import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   createDefaultAnalyticsFilters,
   isoUtcToDateInputValue,
+  isDateRangeValid,
+  normalizeAnalyticsFilters,
 } from "@/lib/analytics-filters";
 import { getEmptyReason, type EmptyReasonFilterKey } from "@/lib/empty-reason";
+import { ANALYSIS_DEFAULTS } from "@/lib/analysis-defaults";
 import {
+  type AnalysisHistogramQueryOptions,
   useAnalysisCyclesQuery,
   useAnalysisHistogramQuery,
   useAnalysisOutliersQuery,
@@ -43,100 +48,93 @@ import {
 } from "@/queries/analytics.queries";
 import type { AnalyticsFilters, AnalyticsOverview } from "@/types/analytics";
 
-type DashboardSuccessProps = {
-  overview: AnalyticsOverview;
-  initialFilters: AnalyticsFilters;
+type DashboardAnalysisProps = {
+  appliedFilters: AnalyticsFilters | null;
+  datasetBounds: { startDate: string | null; endDate: string | null };
+  firstChartRef: React.RefObject<HTMLElement | null>;
+  onClearFilter: (filterKey: EmptyReasonFilterKey) => void;
+  onWidenDateRange: (startDate: string, endDate: string) => void;
 };
 
-function DashboardSuccess({ overview, initialFilters }: DashboardSuccessProps) {
-  const [draftFilters, setDraftFilters] = useState<AnalyticsFilters>(() => ({
-    ...initialFilters,
-  }));
-  // null = the user has not pressed "Filtreleri Uygula" yet. The chip strip
-  // and every chart below always read appliedFilters, never draftFilters.
-  const [appliedFilters, setAppliedFilters] =
-    useState<AnalyticsFilters | null>(null);
-  const firstChartRef = useRef<HTMLElement | null>(null);
+type HistogramControlsProps = {
+  options: AnalysisHistogramQueryOptions;
+  disabled: boolean;
+  onChange: (options: AnalysisHistogramQueryOptions) => void;
+};
 
+function HistogramControls({
+  options,
+  disabled,
+  onChange,
+}: HistogramControlsProps) {
+  const binSize = options.binSize ?? ANALYSIS_DEFAULTS.histogram.binSize;
+  const maxValue = options.maxValue ?? ANALYSIS_DEFAULTS.histogram.maxValue;
+
+  return (
+    <div className="grid min-w-64 grid-cols-2 gap-2">
+      <label className="grid gap-1 text-xs text-muted-foreground">
+        Aralık Genişliği
+        <Select
+          value={String(binSize)}
+          onValueChange={(value) => onChange({ ...options, binSize: Number(value) })}
+          disabled={disabled}
+        >
+          <SelectTrigger aria-label="Aralık Genişliği" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ANALYSIS_DEFAULTS.histogram.binSizeOptions.map((value) => (
+              <SelectItem key={value} value={String(value)}>
+                {value} sn
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="grid gap-1 text-xs text-muted-foreground">
+        Üst Gösterim Sınırı
+        <Select
+          value={String(maxValue)}
+          onValueChange={(value) => onChange({ ...options, maxValue: Number(value) })}
+          disabled={disabled}
+        >
+          <SelectTrigger aria-label="Üst Gösterim Sınırı" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ANALYSIS_DEFAULTS.histogram.maxValueOptions.map((value) => (
+              <SelectItem key={value} value={String(value)}>
+                {value} sn
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+    </div>
+  );
+}
+
+function DashboardAnalysis({
+  appliedFilters,
+  datasetBounds,
+  firstChartRef,
+  onClearFilter,
+  onWidenDateRange,
+}: DashboardAnalysisProps) {
+  const [histogramOptions, setHistogramOptions] =
+    useState<AnalysisHistogramQueryOptions>({});
   const analysisSummaryQuery = useAnalysisSummaryQuery(appliedFilters);
   const analysisTrendQuery = useAnalysisTrendQuery(appliedFilters);
-  const analysisHistogramQuery = useAnalysisHistogramQuery(appliedFilters);
+  const analysisHistogramQuery = useAnalysisHistogramQuery(
+    appliedFilters,
+    histogramOptions,
+  );
   const analysisStagesSummaryQuery =
     useAnalysisStagesSummaryQuery(appliedFilters);
   const analysisStagesTrendQuery =
     useAnalysisStagesTrendQuery(appliedFilters);
   const analysisCyclesQuery = useAnalysisCyclesQuery(appliedFilters);
   const analysisOutliersQuery = useAnalysisOutliersQuery(appliedFilters);
-
-  // Same cache entry DashboardFilters already reads (shared queryKey) —
-  // used here only for the dataset's full date bounds in empty-state copy.
-  const filtersQuery = useFiltersQuery();
-  const datasetBounds = {
-    startDate: filtersQuery.data?.startDate ?? null,
-    endDate: filtersQuery.data?.endDate ?? null,
-  };
-
-  const dateMin = isoUtcToDateInputValue(overview.startDate);
-  const dateMax = isoUtcToDateInputValue(overview.endDate);
-
-  function applyFilters() {
-    // DashboardFilters only calls onApply when its own disabled-state check
-    // (valid dates + draft different from applied) already passed.
-    setAppliedFilters(draftFilters);
-  }
-
-  function resetDraftFilters() {
-    // Reset only clears the draft; appliedFilters (and the rendered charts)
-    // stay untouched until Apply is pressed again.
-    const defaults = createDefaultAnalyticsFilters(
-      [],
-      overview.startDate,
-      overview.endDate,
-    );
-
-    if (defaults) {
-      setDraftFilters(defaults);
-    }
-  }
-
-  function scrollToFirstChart() {
-    const target = firstChartRef.current;
-
-    if (!target) {
-      return;
-    }
-
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    target.focus({ preventScroll: true });
-    target.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-      block: "start",
-    });
-  }
-
-  function applyFiltersAndShowResults() {
-    applyFilters();
-    scrollToFirstChart();
-  }
-
-  // Removing a filter (from a chip or an empty-state action) re-applies
-  // immediately — it does not wait in the draft for another Apply click.
-  function removeAppliedFilter(filterKey: EmptyReasonFilterKey) {
-    setDraftFilters((current) => ({ ...current, [filterKey]: undefined }));
-    setAppliedFilters((current) =>
-      current ? { ...current, [filterKey]: undefined } : current,
-    );
-  }
-
-  function widenDateRangeAndReapply(startDate: string, endDate: string) {
-    setDraftFilters((current) => ({ ...current, startDate, endDate }));
-    setAppliedFilters((current) =>
-      current ? { ...current, startDate, endDate } : current,
-    );
-  }
 
   function renderEmptyReason() {
     if (!appliedFilters) {
@@ -146,17 +144,12 @@ function DashboardSuccess({ overview, initialFilters }: DashboardSuccessProps) {
     return (
       <EmptyReasonPanel
         reason={getEmptyReason(appliedFilters, datasetBounds)}
-        onClearFilter={removeAppliedFilter}
-        onWidenDateRange={widenDateRangeAndReapply}
+        onClearFilter={onClearFilter}
+        onWidenDateRange={onWidenDateRange}
       />
     );
   }
 
-  // summary is the single source of truth for "is there anything at all in
-  // this scope" — when it resolves to zero cycles, every other analysis
-  // endpoint will independently be empty too, so the chart grid below is
-  // skipped entirely instead of repeating the same "no data" message six
-  // more times.
   const isConfirmedEmpty =
     appliedFilters !== null &&
     analysisSummaryQuery.isSuccess &&
@@ -164,27 +157,6 @@ function DashboardSuccess({ overview, initialFilters }: DashboardSuccessProps) {
 
   return (
     <>
-      <DashboardHeader startDate={overview.startDate} endDate={overview.endDate} />
-
-      <OverviewCards overview={overview} />
-
-      <DashboardFilters
-        draftFilters={draftFilters}
-        appliedFilters={appliedFilters}
-        dateMin={dateMin}
-        dateMax={dateMax}
-        onDraftFiltersChange={setDraftFilters}
-        onApply={applyFiltersAndShowResults}
-        onReset={resetDraftFilters}
-      />
-
-      {appliedFilters ? (
-        <AppliedFiltersChips
-          appliedFilters={appliedFilters}
-          onRemoveFilter={removeAppliedFilter}
-        />
-      ) : null}
-
       <section
         ref={firstChartRef}
         tabIndex={-1}
@@ -207,7 +179,7 @@ function DashboardSuccess({ overview, initialFilters }: DashboardSuccessProps) {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <AnalysisChartShell
               title="Çevrim Süresi Trendi"
-              description="Seçili filtre kapsamında çevrim süresinin zaman içindeki değişimi"
+              description="Seçili filtre kapsamındaki çevrim süresinin zaman içindeki değişimi"
               queryResult={analysisTrendQuery}
               hasApplied={appliedFilters !== null}
               isEmpty={(data) =>
@@ -221,9 +193,16 @@ function DashboardSuccess({ overview, initialFilters }: DashboardSuccessProps) {
 
             <AnalysisChartShell
               title="Çevrim Süresi Dağılımı"
-              description="Seçili filtre kapsamındaki çevrimlerin süre aralıklarına göre dağılımı"
-              queryResult={analysisHistogramQuery}
-              hasApplied={appliedFilters !== null}
+          description="Seçili filtre kapsamındaki çevrimlerin süre aralıklarına göre dağılımı"
+          queryResult={analysisHistogramQuery}
+          hasApplied={appliedFilters !== null}
+          headerAction={
+            <HistogramControls
+              options={histogramOptions}
+              disabled={appliedFilters === null}
+              onChange={setHistogramOptions}
+            />
+          }
               isEmpty={(data) => data.totalCycleCount === 0}
               renderEmpty={renderEmptyReason}
               minHeight={420}
@@ -286,66 +265,183 @@ function DashboardSuccess({ overview, initialFilters }: DashboardSuccessProps) {
   );
 }
 
-type DashboardUnavailableProps = {
-  overview: AnalyticsOverview;
-  message: string;
-};
-
-function DashboardUnavailable({ overview, message }: DashboardUnavailableProps) {
-  return (
-    <>
-      <DashboardHeader startDate={overview.startDate} endDate={overview.endDate} />
-      <OverviewCards overview={overview} />
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2>Analiz kullanılamıyor</h2>
-          </CardTitle>
-          <CardDescription>{message}</CardDescription>
-        </CardHeader>
-      </Card>
-    </>
-  );
-}
-
 export function DashboardContent() {
   const overviewQuery = useAnalyticsOverviewQuery();
+  // This query deliberately mounts with the dashboard, independently of the
+  // legacy overview query. Its date bounds are authoritative for Phase 1.
+  const filtersQuery = useFiltersQuery();
+  const [draftFilters, setDraftFilters] = useState<AnalyticsFilters>();
+  const [appliedFilters, setAppliedFilters] =
+    useState<AnalyticsFilters | null>(null);
+  const [preparedDateRangeMessage, setPreparedDateRangeMessage] = useState<
+    string | null
+  >(null);
+  const didInitializeFilters = useRef(false);
+  const firstChartRef = useRef<HTMLElement | null>(null);
 
-  let content;
+  const filterStartDate = filtersQuery.data?.startDate ?? null;
+  const filterEndDate = filtersQuery.data?.endDate ?? null;
+  const dateMin = isoUtcToDateInputValue(filterStartDate);
+  const dateMax = isoUtcToDateInputValue(filterEndDate);
+  const datasetBounds = { startDate: filterStartDate, endDate: filterEndDate };
 
-  if (overviewQuery.isPending) {
-    content = <DashboardLoading />;
-  } else if (overviewQuery.isError) {
-    content = (
-      <DashboardError
-        message="Analiz verileri yüklenemedi. Lütfen tekrar deneyin."
-        onRetry={() => void overviewQuery.refetch()}
-        isRetrying={overviewQuery.isFetching}
-      />
-    );
-  } else {
-    // comparablePairs no longer gates Phase 1 at all — an independent
-    // filter scope needs nothing more than a valid date range to exist.
-    const initialFilters = createDefaultAnalyticsFilters(
+  useEffect(() => {
+    if (!filtersQuery.data || didInitializeFilters.current) {
+      return;
+    }
+
+    // Bootstrap only once from the independent filter endpoint. Refetches
+    // must never overwrite a draft edit or silently replace the applied scope.
+    const initialDraftFilters = createDefaultAnalyticsFilters(
       [],
-      overviewQuery.data.startDate,
-      overviewQuery.data.endDate,
+      filterStartDate,
+      filterEndDate,
     );
+    let cancelled = false;
 
-    content = !initialFilters ? (
-      <DashboardUnavailable
-        overview={overviewQuery.data}
-        message="Analiz tarih aralığı mevcut değil."
-      />
-    ) : (
-      <DashboardSuccess overview={overviewQuery.data} initialFilters={initialFilters} />
+    queueMicrotask(() => {
+      if (cancelled || didInitializeFilters.current) {
+        return;
+      }
+
+      didInitializeFilters.current = true;
+
+      setDraftFilters(initialDraftFilters);
+
+      if (!isDateRangeValid(initialDraftFilters.startDate, initialDraftFilters.endDate)) {
+        return;
+      }
+
+      const normalizedInitialFilters = normalizeAnalyticsFilters(initialDraftFilters);
+      setAppliedFilters({
+        productCode: normalizedInitialFilters.productCode,
+        castCode: normalizedInitialFilters.castCode,
+        machine: normalizedInitialFilters.machine,
+        startDate: normalizedInitialFilters.startDate,
+        endDate: normalizedInitialFilters.endDate,
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filterEndDate, filterStartDate, filtersQuery.data]);
+
+  function updateDraftFilters(filters: AnalyticsFilters) {
+    setDraftFilters(filters);
+    setPreparedDateRangeMessage(null);
+  }
+
+  function applyFilters() {
+    if (!draftFilters) {
+      return;
+    }
+
+    const normalizedDraft = normalizeAnalyticsFilters(draftFilters);
+    const nextAppliedFilters: AnalyticsFilters = {
+      productCode: normalizedDraft.productCode,
+      castCode: normalizedDraft.castCode,
+      machine: normalizedDraft.machine,
+      startDate: normalizedDraft.startDate,
+      endDate: normalizedDraft.endDate,
+    };
+
+    setAppliedFilters(nextAppliedFilters);
+    setPreparedDateRangeMessage(null);
+    scrollToFirstChart();
+  }
+
+  function resetDraftFilters() {
+    setDraftFilters(
+      createDefaultAnalyticsFilters([], filterStartDate, filterEndDate),
+    );
+    setPreparedDateRangeMessage(null);
+  }
+
+  function scrollToFirstChart() {
+    const target = firstChartRef.current;
+
+    if (!target) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+
+  function removeDraftFilter(filterKey: EmptyReasonFilterKey) {
+    setDraftFilters((current) =>
+      current ? { ...current, [filterKey]: undefined } : current,
     );
   }
+
+  function prepareWiderDateRange(startDate: string, endDate: string) {
+    setDraftFilters((current) =>
+      current
+        ? {
+            ...current,
+            startDate: isoUtcToDateInputValue(startDate),
+            endDate: isoUtcToDateInputValue(endDate),
+          }
+        : current,
+    );
+    setPreparedDateRangeMessage(
+      "Daha geniş tarih aralığı hazırlandı. Sonuçları güncellemek için Filtreleri Uygula'ya basın.",
+    );
+  }
+
+  const filtersPanel = (
+    <DashboardFilters
+      draftFilters={draftFilters}
+      appliedFilters={appliedFilters}
+      dateMin={dateMin}
+      dateMax={dateMax}
+      onDraftFiltersChange={updateDraftFilters}
+      onApply={applyFilters}
+      onReset={resetDraftFilters}
+      preparedDateRangeMessage={preparedDateRangeMessage}
+      filtersQuery={filtersQuery}
+    />
+  );
+
+  const overviewContent = overviewQuery.isPending ? (
+    <DashboardLoading />
+  ) : overviewQuery.isError ? (
+    <DashboardError
+      message="Üretim özeti yüklenemedi. Lütfen tekrar deneyin."
+      onRetry={() => void overviewQuery.refetch()}
+      isRetrying={overviewQuery.isFetching}
+    />
+  ) : (
+    <>
+      <DashboardHeader
+        startDate={(overviewQuery.data as AnalyticsOverview).startDate}
+        endDate={(overviewQuery.data as AnalyticsOverview).endDate}
+      />
+      <OverviewCards overview={overviewQuery.data as AnalyticsOverview} />
+    </>
+  );
 
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-        {content}
+        {overviewContent}
+        {filtersPanel}
+        {appliedFilters ? <AppliedFiltersChips appliedFilters={appliedFilters} /> : null}
+        <DashboardAnalysis
+          appliedFilters={appliedFilters}
+          datasetBounds={datasetBounds}
+          firstChartRef={firstChartRef}
+          onClearFilter={removeDraftFilter}
+          onWidenDateRange={prepareWiderDateRange}
+        />
       </div>
     </main>
   );

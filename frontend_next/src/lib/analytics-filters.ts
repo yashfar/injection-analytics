@@ -193,15 +193,11 @@ export function areAnalyticsFiltersValid(
 // unchanged (unused now) so existing callers don't need to change.
 export function createDefaultAnalyticsFilters(
   comparablePairs: AnalyticsComparablePair[],
-  overviewStartDate: string | null,
-  overviewEndDate: string | null,
-): AnalyticsFilters | undefined {
-  const startDate = isoUtcToDateInputValue(overviewStartDate);
-  const endDate = isoUtcToDateInputValue(overviewEndDate);
-
-  if (!isDateRangeValid(startDate, endDate)) {
-    return undefined;
-  }
+  startDateBoundary: string | null,
+  endDateBoundary: string | null,
+): AnalyticsFilters {
+  const startDate = isoUtcToDateInputValue(startDateBoundary);
+  const endDate = isoUtcToDateInputValue(endDateBoundary);
 
   return {
     productCode: undefined,
@@ -209,6 +205,20 @@ export function createDefaultAnalyticsFilters(
     machine: undefined,
     startDate,
     endDate,
+  };
+}
+
+// Phase 1 represents an unrestricted identifier as undefined. This keeps UI
+// sentinels and accidental empty values out of comparisons and API requests.
+export function normalizeAnalyticsFilters(
+  filters: AnalyticsFilters,
+): AnalyticsFilters {
+  return {
+    productCode: filters.productCode || undefined,
+    castCode: filters.castCode || undefined,
+    machine: filters.machine || undefined,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
   };
 }
 

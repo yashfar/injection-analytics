@@ -2,6 +2,7 @@
 
 import type { FormEvent, Ref } from "react";
 import Link from "next/link";
+import type { UseQueryResult } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,11 +26,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   isDateOnlyWithinBounds,
   isValidDateOnly,
+  normalizeAnalyticsFilters,
 } from "@/lib/analytics-filters";
 import { MACHINE_FILTER_TRIGGER_ID } from "@/lib/dashboard-element-ids";
 import { cn } from "@/lib/utils";
-import { useFiltersQuery } from "@/queries/analytics.queries";
-import type { AnalyticsFilters } from "@/types/analytics";
+import type { AnalysisFiltersResponse, AnalyticsFilters } from "@/types/analytics";
 
 // Shared "no restriction on this dimension" sentinel for all three
 // independent selects (Radix Select rejects an actual empty-string value).
@@ -56,12 +57,15 @@ function isFiltersIdentical(
     return false;
   }
 
+  const normalizedDraft = normalizeAnalyticsFilters(draft);
+  const normalizedApplied = normalizeAnalyticsFilters(applied);
+
   return (
-    draft.productCode === applied.productCode &&
-    draft.castCode === applied.castCode &&
-    draft.machine === applied.machine &&
-    draft.startDate === applied.startDate &&
-    draft.endDate === applied.endDate
+    normalizedDraft.productCode === normalizedApplied.productCode &&
+    normalizedDraft.castCode === normalizedApplied.castCode &&
+    normalizedDraft.machine === normalizedApplied.machine &&
+    normalizedDraft.startDate === normalizedApplied.startDate &&
+    normalizedDraft.endDate === normalizedApplied.endDate
   );
 }
 
@@ -76,6 +80,8 @@ type DashboardFiltersProps = {
   machineFilterRef?: Ref<HTMLButtonElement>;
   isMachineFilterAttentionActive?: boolean;
   disabled?: boolean;
+  preparedDateRangeMessage?: string | null;
+  filtersQuery: UseQueryResult<AnalysisFiltersResponse, Error>;
 };
 
 export function DashboardFilters({
@@ -89,13 +95,15 @@ export function DashboardFilters({
   machineFilterRef,
   isMachineFilterAttentionActive = false,
   disabled = false,
+  preparedDateRangeMessage = null,
+  filtersQuery,
 }: DashboardFiltersProps) {
-  const filtersQuery = useFiltersQuery();
   const productCodes = filtersQuery.data?.products ?? [];
   const castCodes = filtersQuery.data?.molds ?? [];
   const machines = filtersQuery.data?.machines ?? [];
   const isFiltersLoading = filtersQuery.isPending;
   const isSelectDisabled = disabled || isFiltersLoading;
+  const hasDateBoundaries = Boolean(dateMin && dateMax);
 
   const isStartDateValid = Boolean(
     draftFilters && isValidDateOnly(draftFilters.startDate),
@@ -131,7 +139,9 @@ export function DashboardFilters({
     draftFilters && (!isStartDateValid || !isEndDateValid),
   );
   const hasOutOfRangeDate = isStartDateOutOfRange || isEndDateOutOfRange;
-  const dateValidationMessage = hasInvalidCalendarDate
+  const dateValidationMessage = !hasDateBoundaries && draftFilters
+    ? "Analiz için kullanılabilir tarih aralığı yok."
+    : hasInvalidCalendarDate
     ? "Geçerli bir takvim tarihi girin."
     : isDateOrderInvalid
       ? "Başlangıç tarihi bitiş tarihinden sonra olamaz."
@@ -250,7 +260,13 @@ export function DashboardFilters({
         <form
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
           onSubmit={handleSubmit}
+          aria-busy={isFiltersLoading}
         >
+          {isFiltersLoading ? (
+            <p role="status" className="sr-only sm:col-span-2 lg:col-span-6">
+              Filtre seçenekleri yükleniyor...
+            </p>
+          ) : null}
           <div className="space-y-2 lg:col-span-1">
             <Label htmlFor="product-filter">Ürün</Label>
             {isFiltersLoading ? (
@@ -258,16 +274,16 @@ export function DashboardFilters({
             ) : (
               <Select
                 value={
-                  draftFilters
-                    ? (draftFilters.productCode ?? ALL_FILTER_VALUE)
-                    : undefined
+                  draftFilters?.productCode ?? ALL_FILTER_VALUE
                 }
                 onValueChange={handleProductChange}
                 disabled={isSelectDisabled}
               >
                 <SelectTrigger id="product-filter" className="w-full">
                   <SelectValue placeholder="Ürün seçin">
-                    {resolveSelectDisplayValue}
+                  {resolveSelectDisplayValue(
+                    draftFilters?.productCode ?? ALL_FILTER_VALUE,
+                  )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -289,16 +305,16 @@ export function DashboardFilters({
             ) : (
               <Select
                 value={
-                  draftFilters
-                    ? (draftFilters.castCode ?? ALL_FILTER_VALUE)
-                    : undefined
+                  draftFilters?.castCode ?? ALL_FILTER_VALUE
                 }
                 onValueChange={handleCastChange}
                 disabled={isSelectDisabled}
               >
                 <SelectTrigger id="mold-filter" className="w-full">
                   <SelectValue placeholder="Kalıp seçin">
-                    {resolveSelectDisplayValue}
+                  {resolveSelectDisplayValue(
+                    draftFilters?.castCode ?? ALL_FILTER_VALUE,
+                  )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -320,9 +336,7 @@ export function DashboardFilters({
             ) : (
               <Select
                 value={
-                  draftFilters
-                    ? (draftFilters.machine ?? ALL_FILTER_VALUE)
-                    : undefined
+                  draftFilters?.machine ?? ALL_FILTER_VALUE
                 }
                 onValueChange={handleMachineChange}
                 disabled={isSelectDisabled}
@@ -338,7 +352,9 @@ export function DashboardFilters({
                   )}
                 >
                   <SelectValue placeholder="Makine seçin">
-                    {resolveSelectDisplayValue}
+                  {resolveSelectDisplayValue(
+                    draftFilters?.machine ?? ALL_FILTER_VALUE,
+                  )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -424,6 +440,14 @@ export function DashboardFilters({
               className="text-sm text-destructive sm:col-span-2 lg:col-span-6"
             >
               {dateValidationMessage}
+            </p>
+          ) : null}
+          {preparedDateRangeMessage ? (
+            <p
+              role="status"
+              className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-6"
+            >
+              {preparedDateRangeMessage}
             </p>
           ) : null}
         </form>

@@ -24,6 +24,7 @@ type AnalysisChartShellProps<TData> = {
   hasApplied: boolean;
   isEmpty: (data: TData) => boolean;
   minHeight?: number;
+  headerAction?: ReactNode;
   children: (data: TData) => ReactNode;
   // Optional override for the empty-state content. When omitted, the
   // default generic message below is used — existing callers don't need
@@ -44,6 +45,7 @@ export function AnalysisChartShell<TData>({
   hasApplied,
   isEmpty,
   minHeight = DEFAULT_MIN_HEIGHT,
+  headerAction,
   children,
   renderEmpty,
 }: AnalysisChartShellProps<TData>) {
@@ -123,10 +125,15 @@ export function AnalysisChartShell<TData>({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          <h2>{title}</h2>
-        </CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>
+              <h2>{title}</h2>
+            </CardTitle>
+            {description ? <CardDescription>{description}</CardDescription> : null}
+          </div>
+          {headerAction}
+        </div>
       </CardHeader>
       <CardContent
         style={{ minHeight }}
