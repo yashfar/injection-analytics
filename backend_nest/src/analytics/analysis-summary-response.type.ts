@@ -9,8 +9,11 @@ export type AnalysisSummaryResponse = {
   standardDeviation: number | null;
   outlierCount: number;
   outlierRate: number;
+  /** Distinct machine count within the filtered scope, not the dataset-wide total from GET /analytics/filters. */
   machineCount: number;
+  /** Distinct product count within the filtered scope, not the dataset-wide total from GET /analytics/filters. */
   productCount: number;
+  /** Distinct mold count within the filtered scope, not the dataset-wide total from GET /analytics/filters. */
   moldCount: number;
   startDate: Date | null;
   endDate: Date | null;

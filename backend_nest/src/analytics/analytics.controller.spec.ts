@@ -9,6 +9,7 @@ import { AnalyticsFilterQueryDto } from './dto/analytics-filter-query.dto';
 import { AnalysisHistogramResponse } from './analysis-histogram-response.type';
 import { AnalysisHistogramQueryDto } from './dto/analysis-histogram-query.dto';
 import { DistributionQueryDto } from './dto/distribution-query.dto';
+import { DateRangeQueryDto } from './dto/date-range-query.dto';
 import {
   AnalysisStagesSummaryResponse,
   AnalysisStagesTrendResponse,
@@ -22,7 +23,6 @@ import {
   AnalysisCyclesResponse,
   AnalysisOutliersResponse,
 } from './analysis-cycles-response.type';
-
 describe('AnalyticsController', () => {
   type GetFiltersMock = () => Promise<AnalyticsFiltersResponse>;
   type GetAnalysisSummaryMock = (
@@ -55,6 +55,14 @@ describe('AnalyticsController', () => {
   type GetAnalysisOutliersMock = (
     query: AnalysisOutliersQueryDto,
   ) => Promise<AnalysisOutliersResponse>;
+  type GetOverviewMock = () => Promise<unknown>;
+  type GetComparablePairsMock = (
+    filters: DateRangeQueryDto,
+  ) => Promise<unknown>;
+  type GetMachineComparisonMock = (
+    filters: PerformanceQueryDto,
+  ) => Promise<unknown>;
+  type GetBoxPlotMock = (query: PerformanceQueryDto) => Promise<unknown>;
 
   let controller: AnalyticsController;
   let getFiltersMock: jest.MockedFunction<GetFiltersMock>;
@@ -68,19 +76,72 @@ describe('AnalyticsController', () => {
   let getLegacyStageComparisonMock: jest.MockedFunction<GetLegacyStageComparisonMock>;
   let getAnalysisCyclesMock: jest.MockedFunction<GetAnalysisCyclesMock>;
   let getAnalysisOutliersMock: jest.MockedFunction<GetAnalysisOutliersMock>;
+  let getOverviewMock: jest.MockedFunction<GetOverviewMock>;
+  let getComparablePairsMock: jest.MockedFunction<GetComparablePairsMock>;
+  let getMachineComparisonMock: jest.MockedFunction<GetMachineComparisonMock>;
+  let getBoxPlotMock: jest.MockedFunction<GetBoxPlotMock>;
 
   beforeEach(async () => {
-    getFiltersMock = jest.fn<GetFiltersMock>();
-    getAnalysisSummaryMock = jest.fn<GetAnalysisSummaryMock>();
-    getAnalysisTrendMock = jest.fn<GetAnalysisTrendMock>();
-    getLegacyTrendMock = jest.fn<GetLegacyTrendMock>();
-    getAnalysisHistogramMock = jest.fn<GetAnalysisHistogramMock>();
-    getLegacyDistributionMock = jest.fn<GetLegacyDistributionMock>();
-    getAnalysisStagesSummaryMock = jest.fn<GetAnalysisStagesSummaryMock>();
-    getAnalysisStagesTrendMock = jest.fn<GetAnalysisStagesTrendMock>();
-    getLegacyStageComparisonMock = jest.fn<GetLegacyStageComparisonMock>();
-    getAnalysisCyclesMock = jest.fn<GetAnalysisCyclesMock>();
-    getAnalysisOutliersMock = jest.fn<GetAnalysisOutliersMock>();
+    getFiltersMock = jest.fn<
+      ReturnType<GetFiltersMock>,
+      Parameters<GetFiltersMock>
+    >();
+    getAnalysisSummaryMock = jest.fn<
+      ReturnType<GetAnalysisSummaryMock>,
+      Parameters<GetAnalysisSummaryMock>
+    >();
+    getAnalysisTrendMock = jest.fn<
+      ReturnType<GetAnalysisTrendMock>,
+      Parameters<GetAnalysisTrendMock>
+    >();
+    getLegacyTrendMock = jest.fn<
+      ReturnType<GetLegacyTrendMock>,
+      Parameters<GetLegacyTrendMock>
+    >();
+    getAnalysisHistogramMock = jest.fn<
+      ReturnType<GetAnalysisHistogramMock>,
+      Parameters<GetAnalysisHistogramMock>
+    >();
+    getLegacyDistributionMock = jest.fn<
+      ReturnType<GetLegacyDistributionMock>,
+      Parameters<GetLegacyDistributionMock>
+    >();
+    getAnalysisStagesSummaryMock = jest.fn<
+      ReturnType<GetAnalysisStagesSummaryMock>,
+      Parameters<GetAnalysisStagesSummaryMock>
+    >();
+    getAnalysisStagesTrendMock = jest.fn<
+      ReturnType<GetAnalysisStagesTrendMock>,
+      Parameters<GetAnalysisStagesTrendMock>
+    >();
+    getLegacyStageComparisonMock = jest.fn<
+      ReturnType<GetLegacyStageComparisonMock>,
+      Parameters<GetLegacyStageComparisonMock>
+    >();
+    getAnalysisCyclesMock = jest.fn<
+      ReturnType<GetAnalysisCyclesMock>,
+      Parameters<GetAnalysisCyclesMock>
+    >();
+    getAnalysisOutliersMock = jest.fn<
+      ReturnType<GetAnalysisOutliersMock>,
+      Parameters<GetAnalysisOutliersMock>
+    >();
+    getOverviewMock = jest.fn<
+      ReturnType<GetOverviewMock>,
+      Parameters<GetOverviewMock>
+    >();
+    getComparablePairsMock = jest.fn<
+      ReturnType<GetComparablePairsMock>,
+      Parameters<GetComparablePairsMock>
+    >();
+    getMachineComparisonMock = jest.fn<
+      ReturnType<GetMachineComparisonMock>,
+      Parameters<GetMachineComparisonMock>
+    >();
+    getBoxPlotMock = jest.fn<
+      ReturnType<GetBoxPlotMock>,
+      Parameters<GetBoxPlotMock>
+    >();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
@@ -99,6 +160,10 @@ describe('AnalyticsController', () => {
             getStageComparison: getLegacyStageComparisonMock,
             getAnalysisCycles: getAnalysisCyclesMock,
             getAnalysisOutliers: getAnalysisOutliersMock,
+            getOverview: getOverviewMock,
+            getComparablePairs: getComparablePairsMock,
+            getMachineComparison: getMachineComparisonMock,
+            getBoxPlot: getBoxPlotMock,
           },
         },
       ],
@@ -467,6 +532,76 @@ describe('AnalyticsController', () => {
       );
       expect(getAnalysisOutliersMock).toHaveBeenCalledWith(query);
       expect(getAnalysisCyclesMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('legacy endpoint preservation', () => {
+    it('delegates getOverview without requiring a query DTO', async () => {
+      const response = {
+        totalCycles: 185295,
+        machineCount: 5,
+        productCount: 35,
+        moldCount: 30,
+        startDate: new Date('2026-07-01T00:00:00.000Z'),
+        endDate: new Date('2026-07-31T23:59:59.999Z'),
+      };
+      getOverviewMock.mockResolvedValue(response);
+
+      await expect(controller.getOverview()).resolves.toEqual(response);
+      expect(getOverviewMock).toHaveBeenCalledTimes(1);
+      expect(getOverviewMock).toHaveBeenCalledWith();
+    });
+
+    it('delegates getComparablePairs filters unchanged', async () => {
+      const filters: DateRangeQueryDto = {
+        from: '2026-07-01',
+        to: '2026-07-31',
+      };
+      const response = [
+        {
+          productCode: 'Product A',
+          castCode: 'Mold 01',
+          machineCount: 2,
+          cycleCount: 100,
+          machines: ['Machine 01', 'Machine 02'],
+        },
+      ];
+      getComparablePairsMock.mockResolvedValue(response);
+
+      await expect(controller.getComparablePairs(filters)).resolves.toEqual(
+        response,
+      );
+      expect(getComparablePairsMock).toHaveBeenCalledWith(filters);
+    });
+
+    it('delegates getMachineComparison filters unchanged', async () => {
+      const filters: PerformanceQueryDto = {
+        productCode: 'Product A',
+        castCode: 'Mold 01',
+      };
+      const response = [{ rank: 1, machine: 'Machine 01', isFastest: true }];
+      getMachineComparisonMock.mockResolvedValue(response);
+
+      await expect(controller.getMachineComparison(filters)).resolves.toEqual(
+        response,
+      );
+      expect(getMachineComparisonMock).toHaveBeenCalledWith(filters);
+    });
+
+    it('delegates getBoxPlot filters unchanged', async () => {
+      const query: PerformanceQueryDto = {
+        productCode: 'Product A',
+        castCode: 'Mold 01',
+      };
+      const response = {
+        productCode: 'Product A',
+        castCode: 'Mold 01',
+        machines: [],
+      };
+      getBoxPlotMock.mockResolvedValue(response);
+
+      await expect(controller.getBoxPlot(query)).resolves.toEqual(response);
+      expect(getBoxPlotMock).toHaveBeenCalledWith(query);
     });
   });
 });

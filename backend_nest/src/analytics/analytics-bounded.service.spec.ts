@@ -51,7 +51,10 @@ describe('AnalyticsService bounded cycle analysis', () => {
   let queryRawMock: jest.MockedFunction<QueryRawMock>;
 
   beforeEach(async () => {
-    queryRawMock = jest.fn<QueryRawMock>();
+    queryRawMock = jest.fn<
+      ReturnType<QueryRawMock>,
+      Parameters<QueryRawMock>
+    >();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AnalyticsService,

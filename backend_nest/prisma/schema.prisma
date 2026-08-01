@@ -64,6 +64,7 @@ model ProductionCycle {
   @@index([machine])
   @@index([machineDate])
   @@index([orderNo])
+  @@index([castCode])
   @@index([productCode, castCode, machine, machineDate])
   @@map("production_cycles")
 }

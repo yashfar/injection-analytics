@@ -5,6 +5,8 @@ import { AnalyticsFiltersResponse } from './analytics-filters-response.type';
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { AnalysisHistogramQueryDto } from './dto/analysis-histogram-query.dto';
+import { DateRangeQueryDto } from './dto/date-range-query.dto';
+import { PerformanceQueryDto } from './dto/performance-query.dto';
 
 type QueryRawMock = (
   ...args: [TemplateStringsArray, ...unknown[]]
@@ -23,7 +25,10 @@ describe('AnalyticsService', () => {
   let queryRawMock: jest.MockedFunction<QueryRawMock>;
 
   beforeEach(async () => {
-    queryRawMock = jest.fn<QueryRawMock>();
+    queryRawMock = jest.fn<
+      ReturnType<QueryRawMock>,
+      Parameters<QueryRawMock>
+    >();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1172,6 +1177,276 @@ describe('AnalyticsService', () => {
             to: '2026-07-07',
           }),
         ).rejects.toBe(error);
+      });
+    });
+  });
+
+  describe('legacy endpoints', () => {
+    describe('getOverview', () => {
+      it('maps dataset-wide aggregate counts and boundaries', async () => {
+        const startDate = new Date('2026-07-01T00:00:00.000Z');
+        const endDate = new Date('2026-07-31T23:59:59.999Z');
+        queryRawMock.mockResolvedValue([
+          {
+            totalCycles: 185295,
+            machineCount: 5,
+            productCount: 35,
+            moldCount: 30,
+            startDate,
+            endDate,
+          },
+        ]);
+
+        await expect(service.getOverview()).resolves.toEqual({
+          totalCycles: 185295,
+          machineCount: 5,
+          productCount: 35,
+          moldCount: 30,
+          startDate,
+          endDate,
+        });
+      });
+
+      it('returns zeroed counts and null boundaries for an empty table', async () => {
+        queryRawMock.mockResolvedValue([]);
+
+        await expect(service.getOverview()).resolves.toEqual({
+          totalCycles: 0,
+          machineCount: 0,
+          productCount: 0,
+          moldCount: 0,
+          startDate: null,
+          endDate: null,
+        });
+      });
+    });
+
+    describe('getComparablePairs', () => {
+      it('rejects reversed dates before querying Prisma', async () => {
+        const filters: DateRangeQueryDto = {
+          from: '2026-07-25',
+          to: '2026-07-24',
+        };
+
+        await expect(service.getComparablePairs(filters)).rejects.toThrow(
+          BadRequestException,
+        );
+        expect(queryRawMock).not.toHaveBeenCalled();
+      });
+
+      it('maps machine-count and cycle-count aggregates to numbers', async () => {
+        queryRawMock.mockResolvedValue([
+          {
+            productCode: 'Product A',
+            castCode: 'Mold 01',
+            machineCount: 2,
+            cycleCount: 100,
+            machines: ['Machine 01', 'Machine 02'],
+          },
+        ]);
+
+        await expect(
+          service.getComparablePairs({ from: '2026-07-01', to: '2026-07-31' }),
+        ).resolves.toEqual([
+          {
+            productCode: 'Product A',
+            castCode: 'Mold 01',
+            machineCount: 2,
+            cycleCount: 100,
+            machines: ['Machine 01', 'Machine 02'],
+          },
+        ]);
+      });
+
+      it('returns an empty list when no pair has at least two machines', async () => {
+        queryRawMock.mockResolvedValue([]);
+
+        await expect(service.getComparablePairs({})).resolves.toEqual([]);
+      });
+    });
+
+    describe('getMachineComparison', () => {
+      it('rejects reversed dates before querying Prisma', async () => {
+        const filters: PerformanceQueryDto = {
+          productCode: 'Product A',
+          castCode: 'Mold 01',
+          from: '2026-07-25',
+          to: '2026-07-24',
+        };
+
+        await expect(service.getMachineComparison(filters)).rejects.toThrow(
+          BadRequestException,
+        );
+        expect(queryRawMock).not.toHaveBeenCalled();
+      });
+
+      it('ranks machines by median cycle time and computes relative difference', async () => {
+        queryRawMock.mockResolvedValue([
+          {
+            machine: 'Machine 01',
+            cycleCount: 100,
+            averageCycleTime: 10.5,
+            medianCycleTime: 10,
+            minimumCycleTime: 8,
+            maximumCycleTime: 12,
+            q1: 9,
+            q3: 11,
+            standardDeviation: 1.25,
+            outlierCount: 5,
+          },
+          {
+            machine: 'Machine 02',
+            cycleCount: 50,
+            averageCycleTime: 11.5,
+            medianCycleTime: 11,
+            minimumCycleTime: 9,
+            maximumCycleTime: 13,
+            q1: 10,
+            q3: 12,
+            standardDeviation: 1.1,
+            outlierCount: 2,
+          },
+        ]);
+
+        const response = await service.getMachineComparison({
+          productCode: 'Product A',
+          castCode: 'Mold 01',
+        });
+
+        expect(response).toEqual([
+          {
+            rank: 1,
+            machine: 'Machine 01',
+            isFastest: true,
+            cycleCount: 100,
+            averageCycleTime: 10.5,
+            medianCycleTime: 10,
+            minimumCycleTime: 8,
+            maximumCycleTime: 12,
+            q1: 9,
+            q3: 11,
+            standardDeviation: 1.25,
+            outlierCount: 5,
+            outlierRate: 5,
+            differenceFromFastestPercent: 0,
+          },
+          {
+            rank: 2,
+            machine: 'Machine 02',
+            isFastest: false,
+            cycleCount: 50,
+            averageCycleTime: 11.5,
+            medianCycleTime: 11,
+            minimumCycleTime: 9,
+            maximumCycleTime: 13,
+            q1: 10,
+            q3: 12,
+            standardDeviation: 1.1,
+            outlierCount: 2,
+            outlierRate: 4,
+            differenceFromFastestPercent: 10,
+          },
+        ]);
+      });
+
+      it('returns an empty list when no machine matches the filters', async () => {
+        queryRawMock.mockResolvedValue([]);
+
+        await expect(
+          service.getMachineComparison({
+            productCode: 'Product A',
+            castCode: 'Mold 01',
+          }),
+        ).resolves.toEqual([]);
+      });
+    });
+
+    describe('getBoxPlot', () => {
+      it('rounds statistics and computes outlier rate per machine', async () => {
+        queryRawMock.mockResolvedValue([
+          {
+            machine: 'Machine 01',
+            cycleCount: 100,
+            averageCycleTime: 10.5,
+            actualMinimum: 5,
+            actualMaximum: 20,
+            q1: 9,
+            median: 10,
+            q3: 11,
+            iqr: 2,
+            lowerFence: 6,
+            upperFence: 14,
+            lowerWhisker: 5,
+            upperWhisker: 14,
+            outlierCount: 3,
+          },
+        ]);
+
+        await expect(
+          service.getBoxPlot({ productCode: 'Product A', castCode: 'Mold 01' }),
+        ).resolves.toEqual({
+          productCode: 'Product A',
+          castCode: 'Mold 01',
+          machines: [
+            {
+              machine: 'Machine 01',
+              cycleCount: 100,
+              averageCycleTime: 10.5,
+              actualMinimum: 5,
+              actualMaximum: 20,
+              q1: 9,
+              median: 10,
+              q3: 11,
+              iqr: 2,
+              lowerFence: 6,
+              upperFence: 14,
+              lowerWhisker: 5,
+              upperWhisker: 14,
+              outlierCount: 3,
+              outlierRate: 3,
+            },
+          ],
+        });
+      });
+
+      it('returns zero outlier rate for a zero-cycle-count machine', async () => {
+        queryRawMock.mockResolvedValue([
+          {
+            machine: 'Machine 01',
+            cycleCount: 0,
+            averageCycleTime: 0,
+            actualMinimum: 0,
+            actualMaximum: 0,
+            q1: 0,
+            median: 0,
+            q3: 0,
+            iqr: 0,
+            lowerFence: 0,
+            upperFence: 0,
+            lowerWhisker: 0,
+            upperWhisker: 0,
+            outlierCount: 0,
+          },
+        ]);
+
+        const response = await service.getBoxPlot({
+          productCode: 'Product A',
+          castCode: 'Mold 01',
+        });
+
+        expect(response.machines[0].outlierRate).toBe(0);
+      });
+
+      it('returns an empty machine list when nothing matches the filters', async () => {
+        queryRawMock.mockResolvedValue([]);
+
+        await expect(
+          service.getBoxPlot({ productCode: 'Product A', castCode: 'Mold 01' }),
+        ).resolves.toEqual({
+          productCode: 'Product A',
+          castCode: 'Mold 01',
+          machines: [],
+        });
       });
     });
   });
