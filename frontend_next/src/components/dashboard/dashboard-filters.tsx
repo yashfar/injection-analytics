@@ -22,7 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isDateOnlyWithinBounds, isValidDateOnly } from "@/lib/analytics-filters";
+import {
+  isDateOnlyWithinBounds,
+  isValidDateOnly,
+} from "@/lib/analytics-filters";
 import { MACHINE_FILTER_TRIGGER_ID } from "@/lib/dashboard-element-ids";
 import { cn } from "@/lib/utils";
 import { useFiltersQuery } from "@/queries/analytics.queries";
@@ -34,6 +37,15 @@ const ALL_FILTER_VALUE = "__all__";
 
 function fromSelectValue(value: string): string | undefined {
   return value === ALL_FILTER_VALUE ? undefined : value;
+}
+
+// Base UI's SelectValue only resolves a human label once the matching
+// SelectItem has mounted at least once (i.e. after the dropdown has been
+// opened) — without this, a freshly loaded page shows the raw "__all__"
+// sentinel instead of "Tümü" until the user opens a dropdown for the first
+// time. Supplying children directly resolves the label immediately.
+function resolveSelectDisplayValue(value: string): string {
+  return value === ALL_FILTER_VALUE ? "Tümü" : value;
 }
 
 function isFiltersIdentical(
@@ -93,33 +105,32 @@ export function DashboardFilters({
   );
   const isDateOrderInvalid = Boolean(
     draftFilters &&
-      isStartDateValid &&
-      isEndDateValid &&
-      draftFilters.startDate > draftFilters.endDate,
+    isStartDateValid &&
+    isEndDateValid &&
+    draftFilters.startDate > draftFilters.endDate,
   );
   const isStartDateOutOfRange = Boolean(
     draftFilters &&
-      isStartDateValid &&
-      !isDateOnlyWithinBounds(
-        draftFilters.startDate,
-        dateMin || undefined,
-        dateMax || undefined,
-      ),
+    isStartDateValid &&
+    !isDateOnlyWithinBounds(
+      draftFilters.startDate,
+      dateMin || undefined,
+      dateMax || undefined,
+    ),
   );
   const isEndDateOutOfRange = Boolean(
     draftFilters &&
-      isEndDateValid &&
-      !isDateOnlyWithinBounds(
-        draftFilters.endDate,
-        dateMin || undefined,
-        dateMax || undefined,
-      ),
+    isEndDateValid &&
+    !isDateOnlyWithinBounds(
+      draftFilters.endDate,
+      dateMin || undefined,
+      dateMax || undefined,
+    ),
   );
   const hasInvalidCalendarDate = Boolean(
     draftFilters && (!isStartDateValid || !isEndDateValid),
   );
-  const hasOutOfRangeDate =
-    isStartDateOutOfRange || isEndDateOutOfRange;
+  const hasOutOfRangeDate = isStartDateOutOfRange || isEndDateOutOfRange;
   const dateValidationMessage = hasInvalidCalendarDate
     ? "Geçerli bir takvim tarihi girin."
     : isDateOrderInvalid
@@ -141,17 +152,17 @@ export function DashboardFilters({
     !isEndDateOutOfRange;
   const canApply = Boolean(
     draftFilters &&
-      !disabled &&
-      hasValidDateRange &&
-      !isFiltersIdentical(draftFilters, appliedFilters),
+    !disabled &&
+    hasValidDateRange &&
+    !isFiltersIdentical(draftFilters, appliedFilters),
   );
   // Distinguishes "first apply" from "you have unapplied changes to
   // already-shown results" — the chip strip and charts still reflect
   // appliedFilters until this button is pressed again.
   const hasPendingChanges = Boolean(
     draftFilters &&
-      appliedFilters !== null &&
-      !isFiltersIdentical(draftFilters, appliedFilters),
+    appliedFilters !== null &&
+    !isFiltersIdentical(draftFilters, appliedFilters),
   );
 
   function handleProductChange(value: string | null) {
@@ -197,7 +208,7 @@ export function DashboardFilters({
 
   if (filtersQuery.isError) {
     return (
-      <Card className="sticky top-0 z-10 shadow-md">
+      <Card className="sticky top-3 z-10 shadow-md">
         <CardHeader>
           <CardTitle>
             <h2>Analiz Filtreleri</h2>
@@ -218,7 +229,7 @@ export function DashboardFilters({
   }
 
   return (
-    <Card className="sticky top-0 z-10 shadow-md">
+    <Card className="sticky top-3 z-10 shadow-md">
       <CardHeader>
         <CardTitle>
           <h2>Analiz Filtreleri</h2>
@@ -255,7 +266,9 @@ export function DashboardFilters({
                 disabled={isSelectDisabled}
               >
                 <SelectTrigger id="product-filter" className="w-full">
-                  <SelectValue placeholder="Ürün seçin" />
+                  <SelectValue placeholder="Ürün seçin">
+                    {resolveSelectDisplayValue}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_FILTER_VALUE}>Tümü</SelectItem>
@@ -284,7 +297,9 @@ export function DashboardFilters({
                 disabled={isSelectDisabled}
               >
                 <SelectTrigger id="mold-filter" className="w-full">
-                  <SelectValue placeholder="Kalıp seçin" />
+                  <SelectValue placeholder="Kalıp seçin">
+                    {resolveSelectDisplayValue}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_FILTER_VALUE}>Tümü</SelectItem>
@@ -322,7 +337,9 @@ export function DashboardFilters({
                     "motion-safe:data-[attention=true]:animate-pulse",
                   )}
                 >
-                  <SelectValue placeholder="Makine seçin" />
+                  <SelectValue placeholder="Makine seçin">
+                    {resolveSelectDisplayValue}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_FILTER_VALUE}>Tümü</SelectItem>
