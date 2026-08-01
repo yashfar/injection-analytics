@@ -1,6 +1,6 @@
 import type { PropsWithChildren, ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -93,11 +93,11 @@ function renderWithInspectableClient(ui: ReactElement) {
   };
 }
 
-function setJsdomPolyfills() {
+function setJsdomPolyfills(isMobile = false) {
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({
-      matches: false,
+      matches: isMobile,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     }),
@@ -162,6 +162,47 @@ describe("createDefaultAnalyticsFilters", () => {
 });
 
 describe("DashboardContent initial unrestricted bootstrap", () => {
+  it("uses a left-side mobile filter drawer while leaving the desktop card out of the mobile layout", async () => {
+    setJsdomPolyfills(true);
+    renderWithClient(<DashboardContent />);
+
+    const openButton = screen.getByRole("button", {
+      name: "Analiz filtrelerini aç",
+    });
+    expect(openButton).toHaveClass("fixed", "left-0");
+    expect(screen.queryByRole("dialog", { name: "Analiz Filtreleri" })).not.toBeInTheDocument();
+
+    fireEvent.click(openButton);
+
+    const drawer = screen.getByRole("dialog", { name: "Analiz Filtreleri" });
+    expect(drawer).toHaveAttribute("aria-modal", "true");
+    await waitFor(() =>
+      expect(within(drawer).getByLabelText("Ürün")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(within(drawer).getByRole("button", { name: "Filtre panelini kapat" }));
+    expect(screen.queryByRole("dialog", { name: "Analiz Filtreleri" })).not.toBeInTheDocument();
+  });
+
+  it("closes the mobile drawer after a valid filter Apply", async () => {
+    setJsdomPolyfills(true);
+    renderWithClient(<DashboardContent />);
+    await waitForInitialAnalysis();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Analiz filtrelerini aç" }),
+    );
+    await screen.findByRole("dialog", { name: "Analiz Filtreleri" });
+    selectOption("Ürün", "URUN-A");
+    fireEvent.click(getApplyButton());
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Analiz Filtreleri" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it("keeps analytics disabled until filter boundaries resolve", async () => {
     server.use(
       http.get(`${API_BASE_URL}/analytics/filters`, async () => {

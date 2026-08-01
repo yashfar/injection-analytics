@@ -1,9 +1,10 @@
 "use client";
 
-import type { FormEvent, Ref } from "react";
+import { useSyncExternalStore, type FormEvent, type Ref } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { MobileFiltersDrawer } from "@/components/dashboard/mobile-filters-drawer";
 import {
   Card,
   CardAction,
@@ -65,6 +66,25 @@ function isFiltersIdentical(
   );
 }
 
+function subscribeToMobileViewport(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia("(max-width: 1023px)");
+  mediaQuery.addEventListener("change", onStoreChange);
+
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getMobileViewportSnapshot() {
+  return window.matchMedia("(max-width: 1023px)").matches;
+}
+
+function useIsMobileViewport() {
+  return useSyncExternalStore(
+    subscribeToMobileViewport,
+    getMobileViewportSnapshot,
+    () => false,
+  );
+}
+
 type DashboardFiltersProps = {
   draftFilters?: AnalyticsFilters;
   appliedFilters: AnalyticsFilters | null;
@@ -76,6 +96,8 @@ type DashboardFiltersProps = {
   machineFilterRef?: Ref<HTMLButtonElement>;
   isMachineFilterAttentionActive?: boolean;
   disabled?: boolean;
+  presentation?: "responsive" | "panel";
+  onApplied?: () => void;
 };
 
 export function DashboardFilters({
@@ -89,6 +111,8 @@ export function DashboardFilters({
   machineFilterRef,
   isMachineFilterAttentionActive = false,
   disabled = false,
+  presentation = "responsive",
+  onApplied,
 }: DashboardFiltersProps) {
   const filtersQuery = useFiltersQuery();
   const productCodes = filtersQuery.data?.products ?? [];
@@ -96,6 +120,9 @@ export function DashboardFilters({
   const machines = filtersQuery.data?.machines ?? [];
   const isFiltersLoading = filtersQuery.isPending;
   const isSelectDisabled = disabled || isFiltersLoading || !draftFilters;
+  const isMobileViewport = useIsMobileViewport();
+  const cardClassName =
+    presentation === "panel" ? "border-0 shadow-none" : "sticky top-3 z-10 shadow-md";
 
   const isStartDateValid = Boolean(
     draftFilters && isValidDateOnly(draftFilters.startDate),
@@ -205,12 +232,36 @@ export function DashboardFilters({
 
     if (canApply) {
       onApply();
+      onApplied?.();
     }
+  }
+
+  if (presentation === "responsive" && isMobileViewport) {
+    return (
+      <MobileFiltersDrawer>
+        {(closeDrawer) => (
+          <DashboardFilters
+            draftFilters={draftFilters}
+            appliedFilters={appliedFilters}
+            dateMin={dateMin}
+            dateMax={dateMax}
+            onDraftFiltersChange={onDraftFiltersChange}
+            onApply={onApply}
+            onReset={onReset}
+            machineFilterRef={machineFilterRef}
+            isMachineFilterAttentionActive={isMachineFilterAttentionActive}
+            disabled={disabled}
+            presentation="panel"
+            onApplied={closeDrawer}
+          />
+        )}
+      </MobileFiltersDrawer>
+    );
   }
 
   if (filtersQuery.isError) {
     return (
-      <Card className="sticky top-3 z-10 shadow-md">
+      <Card className={cardClassName}>
         <CardHeader>
           <CardTitle>
             <h2>Analiz Filtreleri</h2>
@@ -231,7 +282,7 @@ export function DashboardFilters({
   }
 
   return (
-    <Card className="sticky top-3 z-10 shadow-md">
+    <Card className={cardClassName}>
       <CardHeader>
         <CardTitle>
           <h2>Analiz Filtreleri</h2>
