@@ -171,12 +171,6 @@ npm run test:run
 - Exact environment variable names depend on the application configuration.
 - The project uses simulated manufacturing data and does not connect to live industrial machinery.
 
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/yashfar/injection-analytics.git
-cd injection-analytics
 ```
 
 ## 📝 What This Project Demonstrates
