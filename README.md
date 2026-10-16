@@ -215,20 +215,6 @@ The exact startup commands and environment variables should be confirmed from th
 
 ---
 
-## 📈 What This Project Demonstrates
-
-This project reflects practical experience in:
-
-- Designing and implementing full-stack web applications.
-- Developing REST APIs with NestJS.
-- Modeling relational data with PostgreSQL and Prisma.
-- Integrating frontend applications with backend services.
-- Creating interactive dashboards with modern visualization tools.
-- Handling asynchronous data, loading states, and errors.
-- Organizing a project with separate frontend and backend applications.
-
----
-
 ## ⚠️ Project Scope
 
 Injection Analytics is an independently developed **technical prototype**.
