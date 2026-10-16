@@ -185,21 +185,18 @@ git clone https://github.com/yashfar/injection-analytics.git
 cd injection-analytics
 ```
 
-### 2. Install backend dependencies
+## 📝 What This Project Demonstrates
 
-```bash
-cd backend_nest
-npm install
-```
+This project reflects practical experience in:
 
-### 3. Install frontend dependencies
+- Designing and implementing full-stack web applications.
+- Developing REST APIs with NestJS.
+- Modeling relational data with PostgreSQL and Prisma.
+- Integrating frontend applications with backend services.
+- Creating interactive dashboards with modern visualization tools.
+- Handling asynchronous data, loading states, and errors.
+- Organizing a project with separate frontend and backend applications.
 
-Open another terminal:
-
-```bash
-cd frontend_next
-npm install
-```
 
 ### 4. Configure and start the applications
 
