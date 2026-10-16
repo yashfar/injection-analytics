@@ -101,7 +101,6 @@ injection-analytics/
 | Visualization | Recharts |
 
 ---
-
 ## 💻 Local Development
 
 The project contains two separate applications:
@@ -109,13 +108,8 @@ The project contains two separate applications:
 - `backend_nest` — NestJS REST API
 - `frontend_next` — Next.js analytics dashboard
 
-### 1. Clone the repository
 
-```bash
-git clone https://github.com/yashfar/injection-analytics.git
-cd injection-analytics
 ```
-
 ### 2. Set up the Backend
 
 Open a terminal:
@@ -196,19 +190,6 @@ This project reflects practical experience in:
 - Creating interactive dashboards with modern visualization tools.
 - Handling asynchronous data, loading states, and errors.
 - Organizing a project with separate frontend and backend applications.
-
-
-### 4. Configure and start the applications
-
-Configure the required database connection and environment variables according to each application's configuration.
-
-Use the development scripts defined in the respective `package.json` files.
-
-```bash
-npm run
-```
-
-The exact startup commands and environment variables should be confirmed from the project configuration before running locally.
 
 ---
 
