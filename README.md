@@ -104,7 +104,79 @@ injection-analytics/
 
 ## 💻 Local Development
 
-The project contains separate frontend and backend applications.
+The project contains two separate applications:
+
+- `backend_nest` — NestJS REST API
+- `frontend_next` — Next.js analytics dashboard
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/yashfar/injection-analytics.git
+cd injection-analytics
+```
+
+### 2. Set up the Backend
+
+Open a terminal:
+
+```bash
+cd backend_nest
+npm install
+```
+
+Configure the PostgreSQL database connection and the environment variables required by the backend application.
+
+The `postinstall` script automatically runs `prisma generate`.
+
+Start the NestJS development server:
+
+```bash
+npm run start:dev
+```
+
+### 3. Set up the Frontend
+
+Open a second terminal from the repository root:
+
+```bash
+cd frontend_next
+npm install
+```
+
+Configure the frontend environment variables required to connect to the backend API.
+
+Start the Next.js development server:
+
+```bash
+npm run dev
+```
+
+### 4. Build and Test
+
+**Backend:**
+
+```bash
+cd backend_nest
+npm run build
+npm test
+```
+
+**Frontend:**
+
+```bash
+cd frontend_next
+npm run build
+npm run test:run
+```
+
+### Important Notes
+
+- PostgreSQL must be configured before using database-dependent backend features.
+- The frontend and backend are separate applications.
+- Exact environment variable names depend on the application configuration.
+- The project uses simulated manufacturing data and does not connect to live industrial machinery.
+
 
 ### 1. Clone the repository
 
